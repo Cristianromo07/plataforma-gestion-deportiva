@@ -34,7 +34,7 @@ app.get('/', (req, res) => {
   if (req.session.loggedIn) {
     return res.redirect('/dashboard');
   }
-  res.sendFile(path.join(__dirname, 'login.html'));
+  res.sendFile(path.join(__dirname, 'views', 'login.html'));
 });
 
 // Ruta de login
@@ -73,7 +73,7 @@ app.post('/login', async (req, res) => {
 
 // Ruta de registro
 app.get('/register', (req, res) => {
-  res.sendFile(path.join(__dirname, 'register.html'));
+  res.sendFile(path.join(__dirname, 'views', 'register.html'));
 });
 
 app.post('/register', async (req, res) => {
@@ -112,24 +112,40 @@ app.post('/register', async (req, res) => {
 // Dashboard protegido
 app.get('/dashboard', (req, res) => {
   if (req.session.loggedIn) {
-    res.sendFile(path.join(__dirname, 'dashboard.html'));
+    res.sendFile(path.join(__dirname, 'views', 'dashboard.html'));
   } else {
     res.redirect('/');
   }
 });
 
 // Rutas adicionales protegidas
-app.get('/activities', (req, res) => {
+app.get('/cultura', (req, res) => {
   if (req.session.loggedIn) {
-    res.sendFile(path.join(__dirname, 'activities.html'));
+    res.sendFile(path.join(__dirname, 'views', 'cultura.html'));
   } else {
     res.redirect('/');
   }
 });
 
-app.get('/scenarios', (req, res) => {
+app.get('/fomento-deportivo', (req, res) => {
   if (req.session.loggedIn) {
-    res.sendFile(path.join(__dirname, 'scenarios.html'));
+    res.sendFile(path.join(__dirname, 'views', 'fomento_deportivo.html'));
+  } else {
+    res.redirect('/');
+  }
+});
+
+app.get('/actividad-fisica', (req, res) => {
+  if (req.session.loggedIn) {
+    res.sendFile(path.join(__dirname, 'views', 'actividad_fisica.html'));
+  } else {
+    res.redirect('/');
+  }
+});
+
+app.get('/subgerencia-escenarios', (req, res) => {
+  if (req.session.loggedIn) {
+    res.sendFile(path.join(__dirname, 'views', 'subgerencia_escenarios.html'));
   } else {
     res.redirect('/');
   }
@@ -137,23 +153,17 @@ app.get('/scenarios', (req, res) => {
 
 app.get('/profile', (req, res) => {
   if (req.session.loggedIn) {
-    res.sendFile(path.join(__dirname, 'profile.html'));
+    res.sendFile(path.join(__dirname, 'views', 'profile.html'));
   } else {
     res.redirect('/');
   }
 });
 
-app.get('/novedades', (req, res) => {
-  if (req.session.loggedIn) {
-    res.sendFile(path.join(__dirname, 'novedades.html'));
-  } else {
-    res.redirect('/');
-  }
-});
+
 
 app.get('/schedule', (req, res) => {
   if (req.session.loggedIn) {
-    res.sendFile(path.join(__dirname, 'schedule.html'));
+    res.sendFile(path.join(__dirname, 'views', 'schedule.html'));
   } else {
     res.redirect('/');
   }

@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>Reportar Novedad | Coldeporte</title>
+    <title>Subgerencia de Escenarios | Coldeporte</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="/style.css">
     <script src="/script.js" defer></script>
@@ -16,8 +16,10 @@
 
         <div class="nav-links">
             <a href="/dashboard" class="nav-link">Inicio</a>
-            <a href="/activities" class="nav-link">Actividades</a>
-            <a href="/profile" class="nav-link">Mi Perfil</a>
+            <a href="/cultura" class="nav-link">Cultura</a>
+            <a href="/fomento-deportivo" class="nav-link">Fomento Deportivo</a>
+            <a href="/actividad-fisica" class="nav-link">Actividad Física</a>
+            <a href="/subgerencia-escenarios" class="nav-link active">Escenarios</a>
         </div>
 
         <a href="/logout" class="button logout-btn">Cerrar Sesión</a>
@@ -25,10 +27,11 @@
 
     <main class="dashboard-content">
         <div class="card">
-            <h1>Reportar Novedad 📝</h1>
-            <p>Registra incidencias o novedades en los escenarios deportivos.</p>
+            <h1>Subgerencia de Escenarios Deportivos 🏟️</h1>
+            <p>Gestión y reporte de novedades en los escenarios deportivos.</p>
 
             <form action="/dashboard" style="text-align: left; margin-top: 20px;">
+                <h3>Reportar Novedad 📝</h3>
                 <div class="form-group">
                     <label for="scenario">Escenario Deportivo:</label>
                     <select id="scenario" name="scenario"
@@ -62,7 +65,7 @@
             </form>
 
             <p style="margin-top: 30px;">
-                <a href="/dashboard">← Cancelar</a>
+                <a href="/dashboard">← Volver al inicio</a>
             </p>
         </div>
     </main>

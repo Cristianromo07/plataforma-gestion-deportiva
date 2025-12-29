@@ -29,6 +29,39 @@ const dbConfig = {
 };
 
 
+// Middleware de Autenticación (verifica si está logueado)
+const isAuthenticated = (req, res, next) => {
+  if (req.session.loggedIn) {
+    return next();
+  }
+  res.redirect('/');
+};
+
+// Middleware de Autorización (verifica el rol)
+const hasRole = (allowedRoles) => {
+  return (req, res, next) => {
+    // Si el usuario tiene uno de los roles permitidos, continúa
+    if (req.session.role && allowedRoles.includes(req.session.role)) {
+      return next();
+    }
+    // Si no tiene permiso, muestra mensaje de acceso denegado
+    res.status(403).send('<h1>Acceso denegado 🚫</h1><p>No tienes permiso para ver esta sección.</p><a href="/dashboard">Volver al Dashboard</a>');
+  };
+};
+
+// API para obtener info del usuario actual (para el frontend)
+app.get('/api/user-info', (req, res) => {
+  if (req.session.loggedIn) {
+    res.json({
+      loggedIn: true,
+      role: req.session.role,
+      name: 'Usuario' // Podrías agregar nombre en la DB
+    });
+  } else {
+    res.json({ loggedIn: false });
+  }
+});
+
 // Ruta principal: login
 app.get('/', (req, res) => {
   if (req.session.loggedIn) {
@@ -37,7 +70,7 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'views', 'login.html'));
 });
 
-// Ruta de login
+// Ruta de login con Rol
 app.post('/login', async (req, res) => {
   const { email, password } = req.body;
 
@@ -58,8 +91,11 @@ app.post('/login', async (req, res) => {
     const match = await bcrypt.compare(password, user.password);
 
     if (match) {
+      // Guardar datos en sesión
       req.session.loggedIn = true;
       req.session.userId = user.id;
+      req.session.role = user.role; // <--- IMPORTANTE: Guardamos el rol
+
       return res.redirect('/dashboard');
     } else {
       return res.status(401).send('Email o contraseña incorrectos ❌');
@@ -96,7 +132,11 @@ app.post('/register', async (req, res) => {
     // Hashear la contraseña
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Insertar usuario
+    // Por defecto asignamos rol 'empleado' (o lo que decidas)
+    // Asegúrate de que tu DB tenga un valor por defecto o incluye la columna 'role'
+    // Aquí asumimos que la DB lo maneja o lo dejamos null si no es crítico ahora,
+    // pero para seguridad mejor definir un default.
+    // Para simplificar, insertamos solo email/pass como antes.
     await connection.execute('INSERT INTO users (email, password) VALUES (?, ?)', [email, hashedPassword]);
     await connection.end();
 
@@ -109,64 +149,38 @@ app.post('/register', async (req, res) => {
 });
 
 
-// Dashboard protegido
-app.get('/dashboard', (req, res) => {
-  if (req.session.loggedIn) {
-    res.sendFile(path.join(__dirname, 'views', 'dashboard.html'));
-  } else {
-    res.redirect('/');
-  }
+// Dashboard protegido (Accesible para todos los logueados)
+app.get('/dashboard', isAuthenticated, (req, res) => {
+  res.sendFile(path.join(__dirname, 'views', 'dashboard.html'));
 });
 
-// Rutas adicionales protegidas
-app.get('/cultura', (req, res) => {
-  if (req.session.loggedIn) {
-    res.sendFile(path.join(__dirname, 'views', 'cultura.html'));
-  } else {
-    res.redirect('/');
-  }
+// --- RUTAS ADMINISTRATIVAS ---
+// Solo 'admin' puede ver Cultura, Fomento, Actividad, Schedule, etc.
+app.get('/cultura', isAuthenticated, hasRole(['admin']), (req, res) => {
+  res.sendFile(path.join(__dirname, 'views', 'cultura.html'));
 });
 
-app.get('/fomento-deportivo', (req, res) => {
-  if (req.session.loggedIn) {
-    res.sendFile(path.join(__dirname, 'views', 'fomento_deportivo.html'));
-  } else {
-    res.redirect('/');
-  }
+app.get('/fomento-deportivo', isAuthenticated, hasRole(['admin']), (req, res) => {
+  res.sendFile(path.join(__dirname, 'views', 'fomento_deportivo.html'));
 });
 
-app.get('/actividad-fisica', (req, res) => {
-  if (req.session.loggedIn) {
-    res.sendFile(path.join(__dirname, 'views', 'actividad_fisica.html'));
-  } else {
-    res.redirect('/');
-  }
+app.get('/actividad-fisica', isAuthenticated, hasRole(['admin']), (req, res) => {
+  res.sendFile(path.join(__dirname, 'views', 'actividad_fisica.html'));
 });
 
-app.get('/subgerencia-escenarios', (req, res) => {
-  if (req.session.loggedIn) {
-    res.sendFile(path.join(__dirname, 'views', 'subgerencia_escenarios.html'));
-  } else {
-    res.redirect('/');
-  }
-});
-
-app.get('/profile', (req, res) => {
-  if (req.session.loggedIn) {
-    res.sendFile(path.join(__dirname, 'views', 'profile.html'));
-  } else {
-    res.redirect('/');
-  }
+app.get('/schedule', isAuthenticated, hasRole(['admin', 'empleado']), (req, res) => {
+  res.sendFile(path.join(__dirname, 'views', 'schedule.html'));
 });
 
 
+// --- RUTAS PERMITIDAS PARA EMPLEADO ---
+// Escenarios y Perfil
+app.get('/subgerencia-escenarios', isAuthenticated, hasRole(['admin', 'empleado']), (req, res) => {
+  res.sendFile(path.join(__dirname, 'views', 'subgerencia_escenarios.html'));
+});
 
-app.get('/schedule', (req, res) => {
-  if (req.session.loggedIn) {
-    res.sendFile(path.join(__dirname, 'views', 'schedule.html'));
-  } else {
-    res.redirect('/');
-  }
+app.get('/profile', isAuthenticated, hasRole(['admin', 'empleado']), (req, res) => {
+  res.sendFile(path.join(__dirname, 'views', 'profile.html'));
 });
 
 // Logout

@@ -4,194 +4,278 @@ const path = require('path');
 const session = require('express-session');
 const bcrypt = require('bcrypt');
 const mysql = require('mysql2/promise');
+const cors = require('cors');
 
 const app = express();
+const PORT = 3000;
 
-// Middleware para leer formularios
-app.use(express.urlencoded({ extended: true }));
-
-// Middleware para servir archivos estáticos (CSS, JS)
-app.use(express.static('public'));
-
-// Configuración de sesiones
-app.use(session({
-  secret: 'mi-secreto', // cambia esto por algo más seguro
-  resave: false,
-  saveUninitialized: true
+// --- CONFIGURACIÓN CORS ---
+app.use(cors({
+  origin: ['http://localhost:5173', 'http://localhost:3000'], // Allow dev and prod
+  credentials: true
 }));
 
-// Configuración de conexión MySQL
+// --- MIDDLEWARES ---
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(express.static('public'));
+app.use(express.static(path.join(__dirname, 'client/dist')));
+
+// --- SESIONES ---
+app.use(session({
+  secret: 'mi-secreto-muy-seguro',
+  resave: false,
+  saveUninitialized: false,
+  cookie: { secure: false } // true si usas HTTPS
+}));
+
+// --- POOL DE MYSQL ---
 const dbConfig = {
   host: 'localhost',
-  user: 'login_user',   // usuario nuevo
-  password: '1234',     // contraseña que definiste
-  database: 'login_db'
+  user: 'login_user',
+  password: '1234',
+  database: 'login_db',
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0
 };
+const pool = mysql.createPool(dbConfig);
 
-
-// Middleware de Autenticación (verifica si está logueado)
-const isAuthenticated = (req, res, next) => {
-  if (req.session.loggedIn) {
-    return next();
-  }
-  res.redirect('/');
-};
-
-// Middleware de Autorización (verifica el rol)
-const hasRole = (allowedRoles) => {
-  return (req, res, next) => {
-    // Si el usuario tiene uno de los roles permitidos, continúa
-    if (req.session.role && allowedRoles.includes(req.session.role)) {
-      return next();
+// Seed default admin user if not exists (or reset password)
+(async () => {
+  try {
+    const adminEmail = 'admin@test.com';
+    const [rows] = await pool.query('SELECT * FROM users WHERE email = ?', [adminEmail]);
+    const hashed = await bcrypt.hash('admin123', 10);
+    if (rows.length === 0) {
+      await pool.query('INSERT INTO users (email, password, role) VALUES (?, ?, ?)', [adminEmail, hashed, 'admin']);
+      console.log('Default admin user created');
+    } else {
+      // Update password to known value
+      await pool.query('UPDATE users SET password = ?, role = ? WHERE email = ?', [hashed, 'admin', adminEmail]);
+      console.log('Admin user password reset');
     }
-    // Si no tiene permiso, muestra mensaje de acceso denegado
-    res.status(403).send('<h1>Acceso denegado 🚫</h1><p>No tienes permiso para ver esta sección.</p><a href="/dashboard">Volver al Dashboard</a>');
-  };
+  } catch (e) {
+    console.error('Error creating/updating default admin user', e);
+  }
+})();
+
+// --- MIDDLEWARES DE AUTENTICACIÓN ---
+const isAuthenticated = (req, res, next) => {
+  if (req.session.loggedIn) return next();
+  res.status(401).json({ error: 'No autenticado' });
 };
 
-// API para obtener info del usuario actual (para el frontend)
+const hasRole = (roles) => (req, res, next) => {
+  if (req.session.role && roles.includes(req.session.role)) return next();
+  res.status(403).json({ error: 'Acceso denegado' });
+};
+
+// --- RUTAS API ---
+// Escenarios
+app.get('/api/escenarios', async (req, res) => {
+  try {
+    const [rows] = await pool.query('SELECT * FROM escenarios ORDER BY nombre ASC');
+    res.json(rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al obtener escenarios' });
+  }
+});
+
+// Reservas
+app.get('/api/reservas', async (req, res) => {
+  try {
+    let query = `
+      SELECT r.*, e.nombre AS escenario_nombre, u.email AS usuario_email
+      FROM reservas r
+      JOIN escenarios e ON r.escenario_id = e.id
+      JOIN users u ON r.usuario_id = u.id
+      WHERE 1=1
+    `;
+    const params = [];
+
+    if (req.query.escenario_id) {
+      query += ' AND r.escenario_id = ?';
+      params.push(req.query.escenario_id);
+    }
+    if (req.query.usuario_id) {
+      query += ' AND r.usuario_id = ?';
+      params.push(req.query.usuario_id);
+    }
+    if (req.query.start && req.query.end) {
+      query += ' AND r.fecha BETWEEN ? AND ?';
+      params.push(req.query.start, req.query.end);
+    }
+
+    const [rows] = await pool.query(query, params);
+    res.json(rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al obtener reservas' });
+  }
+});
+
+// Crear reserva
+app.post('/api/reservas', isAuthenticated, async (req, res) => {
+  const { escenario_id, fecha, hora_inicio, hora_fin, color } = req.body;
+  const usuario_id = req.session.userId;
+
+  if (!escenario_id || !fecha || !hora_inicio || !hora_fin || !color) {
+    return res.status(400).json({ error: 'Faltan datos obligatorios' });
+  }
+
+  try {
+    // Validar solapamiento
+    const [overlaps] = await pool.query(`
+      SELECT * FROM reservas 
+      WHERE escenario_id = ? 
+      AND fecha = ? 
+      AND (hora_inicio < ? AND hora_fin > ?)
+    `, [escenario_id, fecha, hora_fin, hora_inicio]);
+
+    if (overlaps.length > 0) {
+      return res.status(409).json({ error: 'El escenario ya está reservado en ese horario.' });
+    }
+
+    await pool.query(`
+      INSERT INTO reservas (escenario_id, usuario_id, fecha, hora_inicio, hora_fin, color)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `, [escenario_id, usuario_id, fecha, hora_inicio, hora_fin, color]);
+
+    res.json({ success: true, message: 'Reserva creada exitosamente' });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// Actualizar reserva
+app.put('/api/reservas/:id', isAuthenticated, async (req, res) => {
+  const reservaId = req.params.id;
+  const { escenario_id, fecha, hora_inicio, hora_fin, color } = req.body;
+  const userId = req.session.userId;
+  const userRole = req.session.role;
+
+  try {
+    const [rows] = await pool.query('SELECT * FROM reservas WHERE id = ?', [reservaId]);
+    if (!rows.length) return res.status(404).json({ error: 'Reserva no encontrada' });
+
+    const reserva = rows[0];
+    if (userRole !== 'admin' && reserva.usuario_id !== userId) {
+      return res.status(403).json({ error: 'No tienes permiso' });
+    }
+
+    // Validar solapamiento excluyendo la propia reserva
+    const [overlaps] = await pool.query(`
+      SELECT * FROM reservas 
+      WHERE escenario_id = ? AND fecha = ? AND (hora_inicio < ? AND hora_fin > ?) AND id != ?
+    `, [escenario_id, fecha, hora_fin, hora_inicio, reservaId]);
+
+    if (overlaps.length > 0) return res.status(409).json({ error: 'Solapamiento con otra reserva' });
+
+    await pool.query(`
+      UPDATE reservas SET escenario_id=?, fecha=?, hora_inicio=?, hora_fin=?, color=? WHERE id=?
+    `, [escenario_id, fecha, hora_inicio, hora_fin, color, reservaId]);
+
+    res.json({ success: true, message: 'Reserva actualizada' });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+// Eliminar reserva
+app.delete('/api/reservas/:id', isAuthenticated, async (req, res) => {
+  const reservaId = req.params.id;
+  const userId = req.session.userId;
+  const userRole = req.session.role;
+
+  try {
+    const [rows] = await pool.query('SELECT * FROM reservas WHERE id = ?', [reservaId]);
+    if (!rows.length) return res.status(404).json({ error: 'Reserva no encontrada' });
+
+    const reserva = rows[0];
+    if (userRole !== 'admin' && reserva.usuario_id !== userId) {
+      return res.status(403).json({ error: 'No tienes permiso para eliminar esta reserva' });
+    }
+
+    await pool.query('DELETE FROM reservas WHERE id = ?', [reservaId]);
+    res.json({ success: true, message: 'Reserva eliminada' });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error del servidor' });
+  }
+});
+
+// Información del usuario actual
 app.get('/api/user-info', (req, res) => {
   if (req.session.loggedIn) {
-    res.json({
-      loggedIn: true,
-      role: req.session.role,
-      name: 'Usuario' // Podrías agregar nombre en la DB
-    });
+    res.json({ loggedIn: true, role: req.session.role, userId: req.session.userId });
   } else {
     res.json({ loggedIn: false });
   }
 });
 
-// Ruta principal: login
-app.get('/', (req, res) => {
-  if (req.session.loggedIn) {
-    return res.redirect('/dashboard');
-  }
-  res.sendFile(path.join(__dirname, 'views', 'login.html'));
-});
-
-// Ruta de login con Rol
-app.post('/login', async (req, res) => {
+// Login
+app.post('/api/login', async (req, res) => {
   const { email, password } = req.body;
-
-  if (!email || !password) {
-    return res.status(400).send('Email y contraseña son obligatorios');
-  }
+  if (!email || !password) return res.status(400).json({ error: 'Email y contraseña son obligatorios' });
 
   try {
-    const connection = await mysql.createConnection(dbConfig);
-    const [rows] = await connection.execute('SELECT * FROM users WHERE email = ?', [email]);
-    await connection.end();
-
-    if (rows.length === 0) {
-      return res.status(401).send('Email o contraseña incorrectos ❌');
-    }
+    const [rows] = await pool.query('SELECT * FROM users WHERE email = ?', [email]);
+    if (!rows.length) return res.status(401).json({ error: 'Email o contraseña incorrectos ❌' });
 
     const user = rows[0];
     const match = await bcrypt.compare(password, user.password);
+    if (!match) return res.status(401).json({ error: 'Email o contraseña incorrectos ❌' });
 
-    if (match) {
-      // Guardar datos en sesión
-      req.session.loggedIn = true;
-      req.session.userId = user.id;
-      req.session.role = user.role; // <--- IMPORTANTE: Guardamos el rol
+    req.session.loggedIn = true;
+    req.session.userId = user.id;
+    req.session.role = user.role;
 
-      return res.redirect('/dashboard');
-    } else {
-      return res.status(401).send('Email o contraseña incorrectos ❌');
-    }
-
+    res.json({ success: true, user: { email: user.email, role: user.role } });
   } catch (err) {
     console.error(err);
-    return res.status(500).send('Error de servidor');
+    res.status(500).json({ error: 'Error de servidor' });
   }
 });
 
-// Ruta de registro
-app.get('/register', (req, res) => {
-  res.sendFile(path.join(__dirname, 'views', 'register.html'));
-});
-
+// Registro
 app.post('/register', async (req, res) => {
   const { email, password } = req.body;
-
-  if (!email || !password) {
-    return res.status(400).send('Email y contraseña son obligatorios');
-  }
+  if (!email || !password) return res.status(400).json({ error: 'Email y contraseña son obligatorios' });
 
   try {
-    const connection = await mysql.createConnection(dbConfig);
+    const [rows] = await pool.query('SELECT * FROM users WHERE email = ?', [email]);
+    if (rows.length > 0) return res.status(400).json({ error: 'El usuario ya existe ❌' });
 
-    // Verificar si el usuario ya existe
-    const [rows] = await connection.execute('SELECT * FROM users WHERE email = ?', [email]);
-    if (rows.length > 0) {
-      await connection.end();
-      return res.status(400).send('El usuario ya existe ❌');
-    }
-
-    // Hashear la contraseña
     const hashedPassword = await bcrypt.hash(password, 10);
+    await pool.query('INSERT INTO users (email, password) VALUES (?, ?)', [email, hashedPassword]);
 
-    // Por defecto asignamos rol 'empleado' (o lo que decidas)
-    // Asegúrate de que tu DB tenga un valor por defecto o incluye la columna 'role'
-    // Aquí asumimos que la DB lo maneja o lo dejamos null si no es crítico ahora,
-    // pero para seguridad mejor definir un default.
-    // Para simplificar, insertamos solo email/pass como antes.
-    await connection.execute('INSERT INTO users (email, password) VALUES (?, ?)', [email, hashedPassword]);
-    await connection.end();
-
-    res.send('Usuario registrado ✅. <a href="/">Inicia sesión</a>');
-
+    res.json({ success: true, message: 'Usuario registrado' });
   } catch (err) {
     console.error(err);
-    res.status(500).send('Error de servidor');
+    res.status(500).json({ error: 'Error de servidor' });
   }
-});
-
-
-// Dashboard protegido (Accesible para todos los logueados)
-app.get('/dashboard', isAuthenticated, (req, res) => {
-  res.sendFile(path.join(__dirname, 'views', 'dashboard.html'));
-});
-
-// --- RUTAS ADMINISTRATIVAS ---
-// Solo 'admin' puede ver Cultura, Fomento, Actividad, Schedule, etc.
-app.get('/cultura', isAuthenticated, hasRole(['admin']), (req, res) => {
-  res.sendFile(path.join(__dirname, 'views', 'cultura.html'));
-});
-
-app.get('/fomento-deportivo', isAuthenticated, hasRole(['admin']), (req, res) => {
-  res.sendFile(path.join(__dirname, 'views', 'fomento_deportivo.html'));
-});
-
-app.get('/actividad-fisica', isAuthenticated, hasRole(['admin']), (req, res) => {
-  res.sendFile(path.join(__dirname, 'views', 'actividad_fisica.html'));
-});
-
-app.get('/schedule', isAuthenticated, hasRole(['admin', 'empleado']), (req, res) => {
-  res.sendFile(path.join(__dirname, 'views', 'schedule.html'));
-});
-
-
-// --- RUTAS PERMITIDAS PARA EMPLEADO ---
-// Escenarios y Perfil
-app.get('/subgerencia-escenarios', isAuthenticated, hasRole(['admin', 'empleado']), (req, res) => {
-  res.sendFile(path.join(__dirname, 'views', 'subgerencia_escenarios.html'));
-});
-
-app.get('/profile', isAuthenticated, hasRole(['admin', 'empleado']), (req, res) => {
-  res.sendFile(path.join(__dirname, 'views', 'profile.html'));
 });
 
 // Logout
 app.get('/logout', (req, res) => {
   req.session.destroy(err => {
-    if (err) return res.send('Error al cerrar sesión');
-    res.redirect('/');
+    if (err) return res.status(500).json({ error: 'Error al cerrar sesión' });
+    res.json({ success: true });
   });
 });
 
-// Iniciar servidor
-app.listen(3000, () => {
-  console.log('Servidor escuchando en http://localhost:3000');
+// --- SPA Wildcard ---
+// Debe ir al final
+app.get(/.*/, (req, res) => {
+  res.sendFile(path.join(__dirname, 'client/dist', 'index.html'));
 });
+
+// --- INICIAR SERVIDOR ---
+app.listen(PORT, () => console.log(`Servidor escuchando en http://localhost:${PORT}`));

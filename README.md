@@ -107,15 +107,7 @@ curl -b cookies.txt http://localhost:3000/api/escenarios
 
 Abre issues para bugs o mejoras y envía pull requests con descripciones claras. Mantén consistencia en estilo y linter (`npm run lint` desde `client`).
 
----
-
-Si quieres, puedo:
-
-- Añadir badges de CI/coverage.
-- Crear un archivo `.env.example` y leer variables desde `process.env`.
-- Preparar un script de inicio (`npm run start`) y un `Procfile` para despliegue.
-
-
+---.
 
 Si deseas contribuir a mejorar, ¡eres bienvenido! Por favor, abre un issue o envía un pull request.
 

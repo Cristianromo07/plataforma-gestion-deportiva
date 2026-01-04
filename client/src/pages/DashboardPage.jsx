@@ -1,8 +1,10 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Palette, Trophy, Heart, Map, Clock, User } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
-export default function DashboardPage({ user }) {
+export default function DashboardPage() {
+    const { user } = useAuth();
     return (
         <div className="bg-white rounded-lg shadow p-6">
             <h1 className="text-3xl font-bold mb-2">Bienvenido</h1>

@@ -1,33 +1,22 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import api from '../api';
 import { Mail, Lock, LogIn } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
-export default function LoginPage({ setUser }) {
+export default function LoginPage() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const navigate = useNavigate();
+    const { login } = useAuth();
 
     const handleLogin = async (e) => {
         e.preventDefault();
         try {
-            // Nota: El servidor debe ser actualizado para responder JSON en /login
-            const res = await api.post('/login', { email, password });
-
-            if (res.status === 200) {
-                // Asumimos que el backend nos devuelve el rol o info del usuario
-                // O hacemos un fetch adicional a /user-info si es necesario
-                // Por ahora forzamos una recarga o validación de sesión
-                const userInfo = await api.get('/user-info');
-                if (userInfo.data.loggedIn) {
-                    setUser(userInfo.data);
-                    navigate('/dashboard');
-                }
-            }
+            await login(email, password);
+            navigate('/dashboard');
         } catch (err) {
-            console.error(err);
-            setError('Credenciales incorrectas o error en el servidor');
+            setError(err.message || 'Credenciales incorrectas');
         }
     };
 

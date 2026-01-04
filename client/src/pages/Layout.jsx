@@ -1,16 +1,16 @@
 import React from 'react';
 import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
-import api from '../api';
 import { Home, Palette, Trophy, Heart, Map, Clock, User, LogOut, LayoutDashboard } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
-export default function Layout({ user, setUser }) {
+export default function Layout() {
     const navigate = useNavigate();
     const location = useLocation();
+    const { user, logout } = useAuth();
 
     const handleLogout = async () => {
         try {
-            await api.get('/logout');
-            setUser(null);
+            await logout();
             navigate('/');
         } catch (error) {
             console.error('Error al cerrar sesión', error);

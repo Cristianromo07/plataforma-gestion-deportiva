@@ -14,25 +14,10 @@ import ResetPasswordPage from './pages/ResetPasswordPage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import { CulturaPage, FomentoPage, ActividadFisicaPage } from './pages/GenericPages';
 
-function App() {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+import { useAuth } from './context/AuthContext';
 
-  useEffect(() => {
-    // Verificar sesión al cargar
-    api.get('/user-info')
-      .then(res => {
-        if (res.data.loggedIn) {
-          setUser(res.data);
-        }
-      })
-      .catch(() => {
-        // Si falla, asumimos no logueado
-      })
-      .finally(() => {
-        setLoading(false);
-      });
-  }, []);
+function App() {
+  const { user, loading } = useAuth();
 
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center">Cargando...</div>;
@@ -42,21 +27,21 @@ function App() {
     <BrowserRouter>
       <Routes>
         {/* Rutas Públicas */}
-        <Route path="/" element={!user ? <LoginPage setUser={setUser} /> : <Navigate to="/dashboard" />} />
+        <Route path="/" element={!user ? <LoginPage /> : <Navigate to="/dashboard" />} />
         <Route path="/register" element={!user ? <RegisterPage /> : <Navigate to="/dashboard" />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
 
         {/* Rutas Protegidas (Layout) */}
-        <Route element={user ? <Layout user={user} setUser={setUser} /> : <Navigate to="/" />}>
-          <Route path="/dashboard" element={<DashboardPage user={user} />} />
-          <Route path="/subgerencia-escenarios" element={<SubgerenciaPage user={user} />} />
-          <Route path="/subgerencia-escenarios/horario-gestor" element={<HorarioGestor user={user} />} />
+        <Route element={user ? <Layout /> : <Navigate to="/" />}>
+          <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/subgerencia-escenarios" element={<SubgerenciaPage />} />
+          <Route path="/subgerencia-escenarios/horario-gestor" element={<HorarioGestor />} />
           <Route path="/cultura" element={<CulturaPage />} />
           <Route path="/fomento-deportivo" element={<FomentoPage />} />
           <Route path="/actividad-fisica" element={<ActividadFisicaPage />} />
 
-          <Route path="/profile" element={<ProfilePage user={user} />} />
+          <Route path="/profile" element={<ProfilePage />} />
         </Route>
 
         {/* Ruta por defecto (404) rederige al home */}

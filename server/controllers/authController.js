@@ -4,7 +4,7 @@ const { pool } = require('../config/db');
 
 exports.login = async (req, res, next) => {
     const { email, password } = req.body;
-    if (!email || !password) return res.status(400).json({ error: 'Email y contraseña son obligatorios' });
+    // Validación ya manejada por middleware
 
     try {
         const [rows] = await pool.query('SELECT * FROM users WHERE email = ?', [email]);
@@ -26,7 +26,7 @@ exports.login = async (req, res, next) => {
 
 exports.register = async (req, res, next) => {
     const { email, password } = req.body;
-    if (!email || !password) return res.status(400).json({ error: 'Email y contraseña son obligatorios' });
+    // Validación ya manejada por middleware
 
     try {
         const [rows] = await pool.query('SELECT * FROM users WHERE email = ?', [email]);
@@ -43,7 +43,7 @@ exports.register = async (req, res, next) => {
 
 exports.forgotPassword = async (req, res, next) => {
     const { email } = req.body;
-    if (!email) return res.status(400).json({ error: 'El email es obligatorio' });
+    // Validación ya manejada por middleware
 
     try {
         const [rows] = await pool.query('SELECT * FROM users WHERE email = ?', [email]);
@@ -76,7 +76,7 @@ exports.forgotPassword = async (req, res, next) => {
 
 exports.resetPassword = async (req, res, next) => {
     const { token, newPassword } = req.body;
-    if (!token || !newPassword) return res.status(400).json({ error: 'Token y nueva contraseña son obligatorios' });
+    // Validación ya manejada por middleware
 
     try {
         const [rows] = await pool.query(

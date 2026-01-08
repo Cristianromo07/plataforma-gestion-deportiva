@@ -3,6 +3,8 @@ require('dotenv').config();
 const express = require('express');
 const path = require('path');
 const session = require('express-session');
+const helmet = require('helmet');
+const morgan = require('morgan');
 const cors = require('cors');
 
 const { initDb } = require('./config/db');
@@ -13,6 +15,13 @@ const errorHandler = require('./middleware/errorHandler');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// --- SEGURIDAD Y LOGGING ---
+app.use(helmet({
+  contentSecurityPolicy: false, // Desactivar CSP si causa conflictos con scripts inline o externos de React en dev
+  crossOriginResourcePolicy: { policy: "cross-origin" } // Permitir carga de recursos cruzados (imágenes, etc.)
+}));
+app.use(morgan('dev')); // 'dev' para logs coloridos en consola, 'combined' para producción
 
 // --- CONFIGURACIÓN CORS ---
 app.use(cors({
@@ -50,13 +59,18 @@ app.get(/.*/, (req, res) => {
 app.use(errorHandler);
 
 // --- INICIALIZACIÓN ---
-initDb()
-  .then(() => {
-    app.listen(PORT, () => {
-      console.log(`Servidor escuchando en http://localhost:${PORT}`);
+// Solo iniciamos el servidor si NO estamos en modo de prueba (test)
+if (process.env.NODE_ENV !== 'test') {
+  initDb()
+    .then(() => {
+      app.listen(PORT, () => {
+        console.log(`Servidor escuchando en http://localhost:${PORT}`);
+      });
+    })
+    .catch(err => {
+      console.error('No se pudo inicializar la base de datos, saliendo.');
+      process.exit(1);
     });
-  })
-  .catch(err => {
-    console.error('No se pudo inicializar la base de datos, saliendo.');
-    process.exit(1);
-  });
+}
+
+module.exports = app;

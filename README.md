@@ -100,4 +100,4 @@ Iniciar servicios:
 | POST | /api/login | Autenticación de usuario. |
 
 ---
-*Desarrollado para potenciar la transparencia y eficiencia operativa del deporte en Itagüí.*
+*Desarrollado para potenciar la transparencia y eficiencia operativa del deporte.*

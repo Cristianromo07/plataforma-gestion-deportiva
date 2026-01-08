@@ -77,11 +77,57 @@ async function initDb() {
       )
     `);
 
+        // Tabla para novedades (reporte de fallos/mejoras) con soporte para archivos
+        await conn.query(`
+      CREATE TABLE IF NOT EXISTS novedades (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        escenario_id INT NULL,
+        escenario_nombre VARCHAR(255),
+        tipo VARCHAR(255),
+        descripcion TEXT,
+        archivo_url VARCHAR(255),
+        usuario_id INT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
         // Migración para añadir contacto si la tabla ya existía
         const [horarioCols] = await conn.query('SHOW COLUMNS FROM personal_horarios');
         if (!horarioCols.map(c => c.Field).includes('contacto')) {
             await conn.query('ALTER TABLE personal_horarios ADD COLUMN contacto VARCHAR(255) DEFAULT "" AFTER gestor_nombre');
             console.log('Columna contacto añadida a personal_horarios');
+        }
+
+        // Migración: Normalización escenario_id
+        if (!horarioCols.map(c => c.Field).includes('escenario_id')) {
+            await conn.query('ALTER TABLE personal_horarios ADD COLUMN escenario_id INT NULL AFTER id');
+            console.log('Columna escenario_id añadida a personal_horarios');
+
+            await conn.query(`
+                UPDATE personal_horarios ph 
+                JOIN escenarios e ON ph.escenario = e.nombre 
+                SET ph.escenario_id = e.id 
+                WHERE ph.escenario_id IS NULL
+            `);
+            console.log('Datos migrados a escenario_id');
+        }
+
+        // Migración: Soporte para fecha semanal
+        if (!horarioCols.map(c => c.Field).includes('fecha_inicio')) {
+            await conn.query('ALTER TABLE personal_horarios ADD COLUMN fecha_inicio DATE NULL AFTER escenario_id');
+            // Inicializar con la fecha del lunes actual para evitar nulos en registros previos
+            const d = new Date();
+            const day = d.getDay(), diff = d.getDate() - day + (day === 0 ? -6 : 1);
+            const currentMonday = new Date(d.setDate(diff)).toISOString().split('T')[0];
+
+            await conn.query('UPDATE personal_horarios SET fecha_inicio = ? WHERE fecha_inicio IS NULL', [currentMonday]);
+
+            try {
+                await conn.query('ALTER TABLE personal_horarios DROP INDEX unique_gestor_escenario');
+            } catch (e) { }
+
+            await conn.query('ALTER TABLE personal_horarios ADD UNIQUE KEY unique_gestor_escenario_fecha (escenario, gestor_nombre, fecha_inicio)');
+            console.log('Columna fecha_inicio añadida y restricciones actualizadas');
         }
 
         // Sembrado inicial si la tabla está vacía

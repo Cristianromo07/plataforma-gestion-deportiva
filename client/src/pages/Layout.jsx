@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { Home, Palette, Trophy, Heart, Map, Clock, User, LogOut, LayoutDashboard } from 'lucide-react';
+import { Home, Palette, Trophy, Heart, Map, Clock, User, LogOut, LayoutDashboard, FileText, History } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 export default function Layout() {
@@ -18,12 +18,13 @@ export default function Layout() {
     };
 
     const isAdmin = user?.role === 'admin';
-    const isSchedulePage = location.pathname === '/subgerencia-escenarios/horario-gestor';
+    // Ocultar sidebar en todas las páginas de escenarios (calendario, horario, reportes)
+    const isFullScreenPage = location.pathname.startsWith('/subgerencia-escenarios');
 
     return (
         <div className="min-h-screen bg-gray-100 font-sans flex flex-col md:flex-row">
-            {/* Sidebar / Navbar - Hidden on Schedule Page */}
-            {!isSchedulePage && (
+            {/* Sidebar / Navbar - Hidden on ESCENARIOS Pages */}
+            {!isFullScreenPage && (
                 <aside className="bg-slate-800 text-white w-full md:w-64 p-4 flex flex-col">
                     <div className="text-2xl font-bold mb-8 flex items-center gap-2">
                         <LayoutDashboard className="h-8 w-8 text-blue-500" />
@@ -82,6 +83,22 @@ export default function Layout() {
                         </NavLink>
 
                         <NavLink
+                            to="/subgerencia-escenarios/reportar"
+                            className={({ isActive }) => `flex items-center gap-3 px-4 py-2 rounded transition-colors ${isActive ? 'bg-blue-600 text-white' : 'text-gray-300 hover:bg-slate-700'}`}
+                        >
+                            <FileText className="h-5 w-5" />
+                            <span>Reportar Novedad</span>
+                        </NavLink>
+
+                        <NavLink
+                            to="/subgerencia-escenarios/novedades"
+                            className={({ isActive }) => `flex items-center gap-3 px-4 py-2 rounded transition-colors ${isActive ? 'bg-blue-600 text-white' : 'text-gray-300 hover:bg-slate-700'}`}
+                        >
+                            <History className="h-5 w-5" />
+                            <span>Ver Novedades</span>
+                        </NavLink>
+
+                        <NavLink
                             to="/profile"
                             className={({ isActive }) => `flex items-center gap-3 px-4 py-2 rounded transition-colors ${isActive ? 'bg-blue-600 text-white' : 'text-gray-300 hover:bg-slate-700'}`}
                         >
@@ -101,7 +118,7 @@ export default function Layout() {
             )}
 
             {/* Main Content Area */}
-            <main className={`flex-1 overflow-auto ${isSchedulePage ? 'p-0 h-screen' : 'p-4 md:p-8'}`}>
+            <main className={`flex-1 overflow-auto ${isFullScreenPage ? 'p-0 h-screen w-full' : 'p-4 md:p-8'}`}>
                 <Outlet />
             </main>
         </div>

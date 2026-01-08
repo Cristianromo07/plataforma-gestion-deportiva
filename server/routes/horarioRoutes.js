@@ -7,4 +7,5 @@ router.get('/horarios', horarioController.getHorarios);
 router.post('/horarios', isAuthenticated, horarioController.saveHorarios);
 router.delete('/horarios/:escenario/:nombre', isAuthenticated, horarioController.deleteHorario);
 
+
 module.exports = router;

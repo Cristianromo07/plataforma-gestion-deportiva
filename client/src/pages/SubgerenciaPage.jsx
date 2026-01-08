@@ -6,7 +6,7 @@ import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import api from '../api';
 import BookingModal from '../components/BookingModal';
-import ReportNewsForm from '../components/ReportNewsForm';
+import { ArrowLeft, Plus, History, Clock, FileText, Calendar } from 'lucide-react';
 
 export default function SubgerenciaPage({ user }) {
     const navigate = useNavigate();
@@ -15,8 +15,6 @@ export default function SubgerenciaPage({ user }) {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [currentEvent, setCurrentEvent] = useState(null);
     const [filterScenario, setFilterScenario] = useState('');
-
-    const [activeTab, setActiveTab] = useState('calendar');
 
     const calendarRef = useRef(null);
 
@@ -31,10 +29,8 @@ export default function SubgerenciaPage({ user }) {
     }, []);
 
     useEffect(() => {
-        if (activeTab === 'calendar') {
-            fetchEvents();
-        }
-    }, [filterScenario, activeTab]);
+        fetchEvents();
+    }, [filterScenario]);
 
     const fetchEvents = async () => {
         if (!filterScenario) return;
@@ -60,10 +56,8 @@ export default function SubgerenciaPage({ user }) {
     };
 
     const handleDateSelect = (selectInfo) => {
-        // Preparar datos para el modal
         const startStr = selectInfo.startStr;
         const endStr = selectInfo.endStr;
-
         const dateObj = new Date(startStr);
         const date = dateObj.toISOString().split('T')[0];
         const startTime = dateObj.toTimeString().split(' ')[0].substring(0, 5);
@@ -98,11 +92,9 @@ export default function SubgerenciaPage({ user }) {
     const saveBooking = async (formData) => {
         try {
             if (formData.id) {
-                // Actualizar una sola instancia
                 await api.put(`/reservas/${formData.id}`, formData);
                 alert('Reserva actualizada');
             } else {
-                // Crear (posiblemente múltiples en el backend)
                 const res = await api.post('/reservas', formData);
                 alert(res.data.message || 'Reserva(s) creada(s) con éxito!');
             }
@@ -126,52 +118,72 @@ export default function SubgerenciaPage({ user }) {
     };
 
     return (
-        <div className="subgerencia-page bg-white rounded-lg shadow-lg overflow-hidden flex flex-col h-[85vh]">
-            {/* Header Interno */}
-            <div className="bg-slate-700 text-white p-4 flex justify-between items-center">
-                <h2 className="text-lg font-bold">Subgerencia de Escenarios</h2>
-                {/* Navigation Tabs */}
-                <div className="flex bg-slate-600 rounded p-1 gap-1">
+        <div className="h-screen flex flex-col bg-slate-100 overflow-hidden font-medium text-black">
+            {/* Header Moderno Estilo Premium */}
+            <header className="h-[80px] bg-white border-b-4 border-slate-300 px-6 flex items-center justify-between shadow-lg z-50">
+                <div className="flex items-center gap-5">
                     <button
-                        onClick={() => setActiveTab('calendar')}
-                        className={`px-3 py-1 rounded text-sm transition-colors ${activeTab === 'calendar' ? 'bg-white text-slate-800' : 'text-gray-200 hover:bg-slate-500'
-                            }`}
+                        onClick={() => navigate('/dashboard')}
+                        className="p-3 hover:bg-slate-100 rounded-xl transition-all border-2 border-slate-200 shadow-sm"
                     >
-                        Calendario
+                        <ArrowLeft size={22} className="text-black" />
+                    </button>
+                    <div className="flex flex-col">
+                        <h1 className="text-2xl font-black text-black uppercase italic leading-none tracking-tighter underline decoration-blue-500">
+                            Subgerencia Escenarios
+                        </h1>
+                        <div className="flex items-center gap-2 mt-1">
+                            <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
+                            <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Calendario en Vivo</span>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Filtro Integrado en el Header */}
+                <div className="flex items-center gap-2 bg-slate-200/50 p-1.5 rounded-2xl border-2 border-slate-300 shadow-inner">
+                    <select
+                        className="bg-white border border-slate-300 rounded-xl text-[13px] font-black px-6 py-2 outline-none text-black shadow-sm min-w-[250px]"
+                        value={filterScenario}
+                        onChange={(e) => setFilterScenario(e.target.value)}
+                    >
+                        <option value="">Seleccione Escenario...</option>
+                        {scenarios.map(s => <option key={s.id} value={s.id}>{s.nombre}</option>)}
+                    </select>
+                </div>
+
+                <div className="flex items-center gap-3">
+                    <button
+                        onClick={() => navigate('/subgerencia-escenarios/reportar')}
+                        className="flex items-center gap-2 px-6 py-3 bg-red-600 text-white rounded-2xl font-black text-[11px] uppercase hover:bg-red-700 transition-all shadow-xl"
+                    >
+                        <Plus size={18} /> Reportar Novedad
                     </button>
                     <button
-                        onClick={() => setActiveTab('report')}
-                        className={`px-3 py-1 rounded text-sm transition-colors ${activeTab === 'report' ? 'bg-white text-slate-800' : 'text-gray-200 hover:bg-slate-500'
-                            }`}
+                        onClick={() => navigate('/subgerencia-escenarios/novedades')}
+                        className="flex items-center gap-2 px-6 py-3 bg-slate-800 text-white rounded-2xl font-black text-[11px] uppercase hover:bg-black transition-all shadow-xl"
                     >
-                        Reportar Novedad
+                        <History size={18} /> Ver Novedades
                     </button>
                     <button
                         onClick={() => navigate('/subgerencia-escenarios/horario-gestor')}
-                        className={`px-3 py-1 rounded text-sm transition-colors ${activeTab === 'horario' ? 'bg-white text-slate-800' : 'text-gray-200 hover:bg-slate-500'
-                            }`}
+                        className="flex items-center gap-2 px-6 py-3 bg-blue-700 text-white rounded-2xl font-black text-[11px] uppercase hover:bg-blue-800 transition-all shadow-xl"
                     >
-                        Horario Gestor
+                        <Clock size={18} /> Horario Gestor
                     </button>
                 </div>
-            </div>
+            </header>
 
-            <div className="flex-1 p-4 overflow-auto">
-                {activeTab === 'calendar' && (
-                    <>
-                        <div className="mb-4 flex items-center gap-2">
-                            <label className="font-semibold text-gray-700">Filtrar por Escenario:</label>
-                            <select
-                                className="bg-white border border-gray-300 text-gray-700 p-2 rounded focus:ring-blue-500 focus:border-blue-500"
-                                value={filterScenario}
-                                onChange={(e) => setFilterScenario(e.target.value)}
-                            >
-                                <option value="">-- Seleccionar --</option>
-                                {scenarios.map(s => <option key={s.id} value={s.id}>{s.nombre}</option>)}
-                            </select>
+            <main className="flex-1 p-4 overflow-hidden flex flex-col">
+                <div className="bg-white rounded-[2rem] border-[6px] border-slate-300 shadow-2xl h-full p-6 overflow-auto">
+                    {!filterScenario ? (
+                        <div className="h-full flex flex-col items-center justify-center gap-6 opacity-30">
+                            <Calendar size={80} className="text-slate-400" strokeWidth={1} />
+                            <p className="font-black text-2xl uppercase tracking-[0.2em] text-center max-w-md">
+                                Seleccione un escenario para visualizar el calendario
+                            </p>
                         </div>
-
-                        <div className="calendar-frame">
+                    ) : (
+                        <div className="h-full calendar-premium">
                             <FullCalendar
                                 ref={calendarRef}
                                 plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
@@ -179,7 +191,12 @@ export default function SubgerenciaPage({ user }) {
                                 headerToolbar={{
                                     left: 'prev,next today',
                                     center: 'title',
-                                    right: 'dayGridMonth,timeGridWeek,timeGridDay'
+                                    right: 'dayGridMonth,timeGridWeek'
+                                }}
+                                buttonText={{
+                                    today: 'Hoy',
+                                    month: 'Mes',
+                                    week: 'Semana'
                                 }}
                                 locale="es"
                                 slotMinTime="06:00:00"
@@ -195,15 +212,9 @@ export default function SubgerenciaPage({ user }) {
                                 height="100%"
                             />
                         </div>
-                    </>
-                )}
-
-                {activeTab === 'report' && (
-                    <div className="max-w-3xl mx-auto">
-                        <ReportNewsForm scenarios={scenarios} />
-                    </div>
-                )}
-            </div>
+                    )}
+                </div>
+            </main>
 
             <BookingModal
                 isOpen={isModalOpen}
@@ -213,6 +224,56 @@ export default function SubgerenciaPage({ user }) {
                 initialData={currentEvent}
                 scenarios={scenarios}
             />
+
+            <style>{`
+                .calendar-premium .fc {
+                    --fc-border-color: #e2e8f0;
+                    --fc-today-bg-color: #f8fafc;
+                    --fc-button-bg-color: #0f172a;
+                    --fc-button-border-color: #0f172a;
+                    --fc-button-hover-bg-color: #1e293b;
+                    --fc-button-active-bg-color: #3b82f6;
+                    font-family: inherit;
+                }
+                .calendar-premium .fc-toolbar-title {
+                    font-weight: 900 !important;
+                    text-transform: uppercase;
+                    font-style: italic;
+                    font-size: 1.5rem !important;
+                    letter-spacing: -0.05em;
+                }
+                .calendar-premium .fc-button {
+                    border-radius: 12px !important;
+                    padding: 8px 16px !important;
+                    font-weight: 900 !important;
+                    font-size: 11px !important;
+                    text-transform: uppercase !important;
+                    letter-spacing: 0.1em !important;
+                }
+                .calendar-premium .fc-col-header-cell {
+                    padding: 15px 0 !important;
+                    background: #f8fafc;
+                    border-bottom: 4px solid #334155 !important;
+                }
+                .calendar-premium .fc-col-header-cell-cushion {
+                    font-weight: 900 !important;
+                    text-transform: uppercase;
+                    color: #64748b;
+                    font-size: 12px;
+                }
+                .calendar-premium .fc-timegrid-slot {
+                    height: 3rem !important;
+                }
+                .calendar-premium .fc-event {
+                    border-radius: 8px !important;
+                    border: none !important;
+                    padding: 4px !important;
+                    font-weight: 900 !important;
+                    font-size: 10px !important;
+                    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+                    text-transform: uppercase;
+                }
+            `}</style>
         </div>
     );
 }

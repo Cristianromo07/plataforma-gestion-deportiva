@@ -12,6 +12,8 @@ import HorarioGestor from './pages/HorarioGestor';
 import ProfilePage from './pages/ProfilePage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
+import NovedadesView from './pages/NovedadesView';
+import ReportarPage from './pages/ReportarPage';
 import { CulturaPage, FomentoPage, ActividadFisicaPage } from './pages/GenericPages';
 
 import { useAuth } from './context/AuthContext';
@@ -36,7 +38,9 @@ function App() {
         <Route element={user ? <Layout /> : <Navigate to="/" />}>
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/subgerencia-escenarios" element={<SubgerenciaPage />} />
-          <Route path="/subgerencia-escenarios/horario-gestor" element={<HorarioGestor />} />
+          <Route path="/subgerencia-escenarios/reportar" element={<ReportarPage />} />
+          <Route path="/subgerencia-escenarios/novedades" element={<NovedadesView />} />
+          <Route path="/subgerencia-escenarios/horario-gestor/:date?" element={<HorarioGestor />} />
           <Route path="/cultura" element={<CulturaPage />} />
           <Route path="/fomento-deportivo" element={<FomentoPage />} />
           <Route path="/actividad-fisica" element={<ActividadFisicaPage />} />

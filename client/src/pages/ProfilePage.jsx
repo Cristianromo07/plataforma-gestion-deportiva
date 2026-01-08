@@ -1,7 +1,9 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
-export default function ProfilePage({ user }) {
+export default function ProfilePage() {
+    const { user } = useAuth();
     if (!user) return <div className="text-center p-8">Cargando perfil...</div>;
 
     return (

@@ -11,6 +11,7 @@ const { initDb } = require('./config/db');
 const authRoutes = require('./routes/authRoutes');
 const reservaRoutes = require('./routes/reservaRoutes');
 const horarioRoutes = require('./routes/horarioRoutes');
+const novedadRoutes = require('./routes/novedadRoutes');
 const errorHandler = require('./middleware/errorHandler');
 
 const app = express();
@@ -32,6 +33,7 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static('public'));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use(express.static(path.join(__dirname, '..', 'client/dist')));
 
 // --- SESIONES ---
@@ -46,9 +48,11 @@ app.use(session({
 app.use('/api', authRoutes);
 app.use('/api', reservaRoutes);
 app.use('/api', horarioRoutes);
+app.use('/api', novedadRoutes);
 
 // --- LOGOUT ROOT ALIAS (Opcional, para compatibilidad) ---
-app.get('/logout', (req, res) => res.redirect('/api/logout'));
+// --- LOGOUT ROOT ALIAS (Redundante, eliminado) ---
+// app.get('/logout', (req, res) => res.redirect('/api/logout'));
 
 // --- SPA FALLBACK ---
 app.get(/.*/, (req, res) => {

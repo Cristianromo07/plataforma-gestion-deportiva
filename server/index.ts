@@ -1,20 +1,20 @@
-// server/index.js - Entry point for the refactored layered architecture
-require('dotenv').config();
-const express = require('express');
-const path = require('path');
-const session = require('express-session');
-const helmet = require('helmet');
-const morgan = require('morgan');
-const cors = require('cors');
+// server/index.ts - Entry point for the refactored layered architecture in TypeScript
+import 'dotenv/config';
+import express, { Express, Request, Response } from 'express';
+import path from 'path';
+import session from 'express-session';
+import helmet from 'helmet';
+import morgan from 'morgan';
+import cors from 'cors';
 
-const { initDb } = require('./config/db');
-const authRoutes = require('./routes/authRoutes');
-const reservaRoutes = require('./routes/reservaRoutes');
-const horarioRoutes = require('./routes/horarioRoutes');
-const novedadRoutes = require('./routes/novedadRoutes');
-const errorHandler = require('./middleware/errorHandler');
+import { initDb } from './config/db';
+import authRoutes from './routes/authRoutes';
+import reservaRoutes from './routes/reservaRoutes';
+import horarioRoutes from './routes/horarioRoutes';
+import novedadRoutes from './routes/novedadRoutes';
+import errorHandler from './middleware/errorHandler';
 
-const app = express();
+const app: Express = express();
 const PORT = process.env.PORT || 3000;
 
 // --- SEGURIDAD Y LOGGING ---
@@ -50,12 +50,8 @@ app.use('/api', reservaRoutes);
 app.use('/api', horarioRoutes);
 app.use('/api', novedadRoutes);
 
-// --- LOGOUT ROOT ALIAS (Opcional, para compatibilidad) ---
-// --- LOGOUT ROOT ALIAS (Redundante, eliminado) ---
-// app.get('/logout', (req, res) => res.redirect('/api/logout'));
-
 // --- SPA FALLBACK ---
-app.get(/.*/, (req, res) => {
+app.get(/.*/, (req: Request, res: Response) => {
   res.sendFile(path.join(__dirname, '..', 'client/dist', 'index.html'));
 });
 
@@ -77,4 +73,4 @@ if (process.env.NODE_ENV !== 'test') {
     });
 }
 
-module.exports = app;
+export default app;

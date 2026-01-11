@@ -1,10 +1,11 @@
-const { pool } = require('../config/db');
+import { Request, Response, NextFunction } from 'express';
+import { pool } from '../config/db';
 
-exports.getHorarios = async (req, res, next) => {
+export const getHorarios = async (req: Request, res: Response, next: NextFunction) => {
     const { date } = req.query; // Esperamos fecha del lunes YYYY-MM-DD
     try {
         let sql = 'SELECT * FROM personal_horarios';
-        const params = [];
+        const params: any[] = [];
         if (date) {
             sql += ' WHERE fecha_inicio = ?';
             params.push(date);
@@ -16,7 +17,7 @@ exports.getHorarios = async (req, res, next) => {
     }
 };
 
-exports.saveHorarios = async (req, res, next) => {
+export const saveHorarios = async (req: Request, res: Response, next: NextFunction) => {
     const { entries } = req.body;
     if (!entries || !Array.isArray(entries)) {
         return res.status(400).json({ error: 'Formato de datos inválido' });
@@ -26,25 +27,9 @@ exports.saveHorarios = async (req, res, next) => {
     try {
         await connection.beginTransaction();
 
-        // Query movido al bucle para resolver ID individual
-        /*const sql = `
-      INSERT INTO personal_horarios 
-      (escenario, gestor_nombre, contacto, lunes, martes, miercoles, jueves, viernes, sabado, domingo)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      ON DUPLICATE KEY UPDATE
-      contacto = VALUES(contacto),
-      lunes = VALUES(lunes),
-      martes = VALUES(martes),
-      miercoles = VALUES(miercoles),
-      jueves = VALUES(jueves),
-      viernes = VALUES(viernes),
-      sabado = VALUES(sabado),
-      domingo = VALUES(domingo)
-    `;*/
-
         for (const entry of entries) {
-            const [escRows] = await connection.query('SELECT id FROM escenarios WHERE nombre = ?', [entry.escenario]);
-            const escenarioId = escRows.length > 0 ? escRows[0].id : null;
+            const [escRows]: any = await connection.query('SELECT id FROM escenarios WHERE nombre = ?', [entry.escenario]);
+            const escenarioId = escRows.length > 0 ? (escRows[0] as any).id : null;
 
             await connection.query(`
                     INSERT INTO personal_horarios 
@@ -86,7 +71,7 @@ exports.saveHorarios = async (req, res, next) => {
     }
 };
 
-exports.deleteHorario = async (req, res, next) => {
+export const deleteHorario = async (req: Request, res: Response, next: NextFunction) => {
     const { escenario, nombre } = req.params;
     try {
         await pool.query('DELETE FROM personal_horarios WHERE escenario = ? AND gestor_nombre = ?', [escenario, nombre]);
@@ -95,5 +80,3 @@ exports.deleteHorario = async (req, res, next) => {
         next(err);
     }
 };
-
-

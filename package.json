@@ -4,11 +4,11 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start": "node server/index.js",
-    "server": "nodemon server/index.js",
+    "start": "node dist/server/index.js",
+    "server": "nodemon --exec ts-node server/index.ts",
     "client": "npm run dev --prefix client",
-    "dev": "nodemon server/index.js",
-    "test": "cross-env NODE_ENV=test jest"
+    "dev": "nodemon --exec ts-node server/index.ts",
+    "build": "tsc"
   },
   "keywords": [],
   "author": "",
@@ -27,8 +27,18 @@
     "mysql2": "^3.16.0"
   },
   "devDependencies": {
+    "@types/bcrypt": "^6.0.0",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/express-session": "^1.18.2",
+    "@types/morgan": "^1.9.10",
+    "@types/multer": "^2.0.0",
+    "@types/node": "^25.0.6",
     "cross-env": "^10.1.0",
     "jest": "^30.2.0",
-    "supertest": "^7.1.4"
+    "nodemon": "^3.1.0",
+    "supertest": "^7.1.4",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3"
   }
 }

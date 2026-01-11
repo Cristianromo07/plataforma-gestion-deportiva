@@ -1,15 +1,26 @@
-const { pool } = require('../config/db');
+import { Request, Response, NextFunction } from 'express';
+import { pool } from '../config/db';
+
+interface GenerateDatesParams {
+    fecha: string;
+    repite?: string;
+    intervalo?: string | number;
+    dias_semana?: number[];
+    fin_tipo?: string;
+    fin_fecha?: string;
+    fin_repeticiones?: string | number;
+}
 
 // Función auxiliar para fechas recurrentes
-function generateDates(data) {
-    const dates = [];
+function generateDates(data: GenerateDatesParams): string[] {
+    const dates: string[] = [];
     const start = new Date(data.fecha + 'T00:00:00');
 
     if (!data.repite || data.repite === 'nunca') return [data.fecha];
 
     let current = new Date(start);
-    const interval = parseInt(data.intervalo) || 1;
-    const maxRep = data.fin_tipo === 'repeticiones' ? parseInt(data.fin_repeticiones) : 1000;
+    const interval = parseInt(data.intervalo as string) || 1;
+    const maxRep = data.fin_tipo === 'repeticiones' ? parseInt(data.fin_repeticiones as string) : 1000;
     const endDate = data.fin_tipo === 'fecha' && data.fin_fecha ? new Date(data.fin_fecha + 'T23:59:59') : null;
 
     if (data.repite === 'diario') {
@@ -43,7 +54,7 @@ function generateDates(data) {
     return dates.length > 0 ? dates : [data.fecha];
 }
 
-exports.getReservas = async (req, res, next) => {
+export const getReservas = async (req: Request, res: Response, next: NextFunction) => {
     const { escenario_id } = req.query;
     try {
         let query = `
@@ -52,7 +63,7 @@ exports.getReservas = async (req, res, next) => {
       JOIN users u ON r.usuario_id = u.id
       JOIN escenarios e ON r.escenario_id = e.id
     `;
-        const params = [];
+        const params: any[] = [];
         if (escenario_id) {
             query += ' WHERE r.escenario_id = ?';
             params.push(escenario_id);
@@ -66,7 +77,7 @@ exports.getReservas = async (req, res, next) => {
     }
 };
 
-exports.createReserva = async (req, res, next) => {
+export const createReserva = async (req: Request, res: Response, next: NextFunction) => {
     const {
         escenario_id, fecha, hora_inicio, hora_fin, color,
         repite, intervalo, dias_semana, fin_tipo, fin_fecha, fin_repeticiones,
@@ -85,7 +96,7 @@ exports.createReserva = async (req, res, next) => {
         const dates = generateDates({ fecha, repite, intervalo, dias_semana, fin_tipo, fin_fecha, fin_repeticiones });
 
         for (const d of dates) {
-            const [overlaps] = await connection.query(`
+            const [overlaps]: any = await connection.query(`
         SELECT * FROM reservas 
         WHERE escenario_id = ? 
         AND fecha = ? 
@@ -120,7 +131,7 @@ exports.createReserva = async (req, res, next) => {
     }
 };
 
-exports.updateReserva = async (req, res, next) => {
+export const updateReserva = async (req: Request, res: Response, next: NextFunction) => {
     const reservaId = req.params.id;
     const {
         escenario_id, fecha, hora_inicio, hora_fin, color,
@@ -130,7 +141,7 @@ exports.updateReserva = async (req, res, next) => {
     const userRole = req.session.role;
 
     try {
-        const [rows] = await pool.query('SELECT * FROM reservas WHERE id = ?', [reservaId]);
+        const [rows]: any = await pool.query('SELECT * FROM reservas WHERE id = ?', [reservaId]);
         if (!rows.length) return res.status(404).json({ error: 'Reserva no encontrada' });
 
         const reserva = rows[0];
@@ -138,7 +149,7 @@ exports.updateReserva = async (req, res, next) => {
             return res.status(403).json({ error: 'No tienes permiso' });
         }
 
-        const [overlaps] = await pool.query(`
+        const [overlaps]: any = await pool.query(`
       SELECT * FROM reservas 
       WHERE escenario_id = ? AND fecha = ? AND (hora_inicio < ? AND hora_fin > ?) AND id != ?
     `, [escenario_id, fecha, hora_fin, hora_inicio, reservaId]);
@@ -163,13 +174,13 @@ exports.updateReserva = async (req, res, next) => {
     }
 };
 
-exports.deleteReserva = async (req, res, next) => {
+export const deleteReserva = async (req: Request, res: Response, next: NextFunction) => {
     const reservaId = req.params.id;
     const userId = req.session.userId;
     const userRole = req.session.role;
 
     try {
-        const [rows] = await pool.query('SELECT * FROM reservas WHERE id = ?', [reservaId]);
+        const [rows]: any = await pool.query('SELECT * FROM reservas WHERE id = ?', [reservaId]);
         if (!rows.length) return res.status(404).json({ error: 'Reserva no encontrada' });
 
         const reserva = rows[0];
@@ -185,7 +196,7 @@ exports.deleteReserva = async (req, res, next) => {
     }
 };
 
-exports.getEscenarios = async (req, res, next) => {
+export const getEscenarios = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const [rows] = await pool.query('SELECT * FROM escenarios ORDER BY nombre');
         res.json(rows);

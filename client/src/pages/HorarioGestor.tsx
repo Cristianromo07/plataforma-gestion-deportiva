@@ -1,32 +1,18 @@
-// HorarioGestor.tsx - Gestión de turnos y gestores
+// HorarioGestor.tsx - Gestión de turnos y gestores (Vista Fija)
 import React, { useState, useMemo, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import api from '../api';
 import { exportToExcel } from '../utils/exportUtils';
-import { Search, Plus, UserPlus, Trash2, Edit2, Save, ArrowLeft, X, Shield, Phone, AlertTriangle, AlertCircle, FileDown, Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, UserPlus, Trash2, Edit2, Save, ArrowLeft, X, Phone, FileDown, AlertTriangle, AlertCircle } from 'lucide-react';
 import { normalize } from '../utils/stringUtils';
-import { Gestor, EscenarioData, ActiveGap, DAYS, TURNO_PRESETS, ALLOWED_ESCENARIOS } from '../types/horario';
+import { Gestor, EscenarioData, ActiveGap, DAYS, TURNO_PRESETS } from '../types/horario';
 import ReplacementModal from '../components/ReplacementModal';
 import AddGestorModal from '../components/AddGestorModal';
 
 export default function HorarioGestor() {
     const navigate = useNavigate();
-    const { date: routeDate } = useParams();
 
-    // Obtener el lunes de la semana en formato YYYY-MM-DD, seguro para zonas horarias
-    const getMonday = (dateInput: string | Date): string => {
-        const d = new Date(dateInput);
-        if (typeof dateInput === 'string' && !dateInput.includes('T')) {
-            d.setHours(12, 0, 0, 0); // Evitar desfases horarias por fechas planas
-        }
-        const day = d.getDay();
-        const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-        const monday = new Date(d);
-        monday.setDate(diff);
-        return monday.toISOString().split('T')[0];
-    };
-
-    const [currentWeek, setCurrentWeek] = useState<string>(routeDate ? getMonday(routeDate) : getMonday(new Date()));
+    // Estados simplificados
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedEscenario, setSelectedEscenario] = useState('Todos');
     const [filterEmpty, setFilterEmpty] = useState(false);
@@ -36,6 +22,8 @@ export default function HorarioGestor() {
     const [showReplacementModal, setShowReplacementModal] = useState(false);
     const [activeGap, setActiveGap] = useState<ActiveGap | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [hidePassedDays, setHidePassedDays] = useState(false);
+    const [showAddForm, setShowAddForm] = useState(false);
 
     const [data, setData] = useState<EscenarioData[]>([]);
     const [allEscenarios, setAllEscenarios] = useState<any[]>([]);
@@ -43,19 +31,13 @@ export default function HorarioGestor() {
     const [dirtyRows, setDirtyRows] = useState(new Set<string>());
     const [newGestor, setNewGestor] = useState({ nombre: '', contacto: '', escenario: '' });
 
-    useEffect(() => {
-        if (routeDate) {
-            const mon = getMonday(routeDate);
-            if (mon !== currentWeek) setCurrentWeek(mon);
-        }
-    }, [routeDate]);
-
+    // Carga de datos sin filtrado de fecha
     const loadData = async () => {
         setIsLoading(true);
         try {
             const [escResponse, horarioResponse] = await Promise.all([
                 api.get('/escenarios'),
-                api.get(`/horarios?date=${currentWeek}`)
+                api.get('/horarios')
             ]);
 
             const fetchedEscenarios = escResponse.data;
@@ -66,8 +48,6 @@ export default function HorarioGestor() {
 
             const structured: EscenarioData[] = fetchedEscenarios.map((esc: any) => {
                 const gestoresMatches = dbData.filter((d: any) => {
-                    // Coincidencia robusta por nombre de escenario o ID
-                    // Algunos datos antiguos pueden no tener escenario_id
                     return d.escenario_id === esc.id || d.escenario === esc.nombre;
                 });
 
@@ -93,15 +73,9 @@ export default function HorarioGestor() {
         }
     };
 
-    useEffect(() => { loadData(); }, [currentWeek]);
+    useEffect(() => { loadData(); }, []);
 
-    const changeWeek = (offset: number) => {
-        const d = new Date(currentWeek + 'T12:00:00'); // Usar el mediodía para evitar problemas de zona horaria
-        d.setDate(d.getDate() + (offset * 7));
-        const newMon = getMonday(d);
-        navigate(`/subgerencia-escenarios/horario-gestor/${newMon}`);
-    };
-
+    // Lógica de detección de vacantes (gaps)
     const dataWithGaps = useMemo(() => {
         return data.map(item => {
             const gaps: { day: number; shift: string }[] = [];
@@ -133,6 +107,7 @@ export default function HorarioGestor() {
         });
     }, [data]);
 
+    // Filtrado de búsqueda y sede
     const filteredData = useMemo(() => {
         return dataWithGaps.map(item => {
             const isCicloviaFilter = selectedEscenario === 'Ciclovía';
@@ -172,6 +147,16 @@ export default function HorarioGestor() {
 
     const emptyCount = useMemo(() => dataWithGaps.filter(e => e.gaps.length > 0).length, [dataWithGaps]);
 
+    const currentDayIdx = useMemo(() => {
+        const d = new Date().getDay(); // 0 is Sunday, 1 is Monday...
+        return d === 0 ? 6 : d - 1; // Map to 0=Mon, 6=Sun
+    }, []);
+
+    const visibleDaysIdx = useMemo(() => {
+        if (!hidePassedDays) return [0, 1, 2, 3, 4, 5, 6];
+        return [0, 1, 2, 3, 4, 5, 6].filter(i => i >= currentDayIdx);
+    }, [hidePassedDays, currentDayIdx]);
+
     const handleUpdate = (escIdx: number, gIdx: number, field: string, val: string, dayIdx: number | null = null) => {
         const newData = [...data];
         if (dayIdx !== null) {
@@ -195,7 +180,7 @@ export default function HorarioGestor() {
                         gestor_nombre: g.nombre,
                         contacto: g.contacto,
                         turnos: g.turnos,
-                        fecha_inicio: currentWeek
+                        fecha_inicio: '2000-01-01' // Fecha fija para compatibilidad
                     });
                 }
             });
@@ -220,32 +205,26 @@ export default function HorarioGestor() {
 
     const handleAdd = async () => {
         if (!newGestor.nombre || !newGestor.escenario) return alert("Nombre y Sede son obligatorios");
-
         const escMaster = allEscenarios.find(e => e.nombre === newGestor.escenario);
-
         const entry = {
             escenario: newGestor.escenario,
             escenario_id: escMaster?.id,
             gestor_nombre: newGestor.nombre.toUpperCase(),
             contacto: newGestor.contacto,
             turnos: ["", "", "", "", "", "", ""],
-            fecha_inicio: currentWeek
+            fecha_inicio: '2000-01-01'
         };
-
         try {
             await api.post('/horarios', { entries: [entry] });
-            alert("Gestor registrado y guardado en base de datos.");
-            setShowAddModal(false);
+            alert("Gestor registrado.");
+            setShowAddForm(false);
             setNewGestor({ nombre: '', contacto: '', escenario: '' });
             loadData();
-        } catch (err: any) {
-            alert("Error al registrar: " + (err.response?.data?.error || err.message));
-        }
+        } catch (err: any) { alert("Error al registrar: " + (err.response?.data?.error || err.message)); }
     };
 
     const handleAssignReplacement = async (gestor: Gestor) => {
         if (!activeGap) return;
-
         let sourceEntry: any = null;
         for (const esc of data) {
             const found = esc.gestores.find(g => g.nombre === gestor.nombre);
@@ -254,56 +233,39 @@ export default function HorarioGestor() {
                 break;
             }
         }
-
         if (!sourceEntry) return;
 
         const baseShift = activeGap.shift === 'MAÑANA' ? '6:00 1:30' : '2:30 10:00';
         const newTurnos = [...sourceEntry.turnos];
         const currentVal = (newTurnos[activeGap.day] || '');
+        newTurnos[activeGap.day] = currentVal.toUpperCase().includes(baseShift)
+            ? `${currentVal} ${activeGap.escenario.toUpperCase()}+`
+            : `${baseShift} ${activeGap.escenario.toUpperCase()}+`;
 
-        if (currentVal.toUpperCase().includes(baseShift)) {
-            newTurnos[activeGap.day] = `${currentVal} ${activeGap.escenario.toUpperCase()}+`;
-        } else {
-            newTurnos[activeGap.day] = `${baseShift} ${activeGap.escenario.toUpperCase()}+`;
-        }
-
-        const payload = {
-            id: sourceEntry.id,
-            escenario: sourceEntry.escName,
-            escenario_id: sourceEntry.escId,
-            gestor_nombre: sourceEntry.nombre,
-            contacto: sourceEntry.contacto,
-            turnos: newTurnos,
-            fecha_inicio: currentWeek
-        };
-
+        const payload = { ...sourceEntry, gestor_nombre: sourceEntry.nombre, turnos: newTurnos, fecha_inicio: '2000-01-01', escenario_id: sourceEntry.escId, escenario: sourceEntry.escName };
         try {
             await api.post('/horarios', { entries: [payload] });
             alert(`Sustitución consolidada en ${gestor.nombre}`);
             setShowReplacementModal(false);
             setActiveGap(null);
             loadData();
-        } catch (err: any) {
-            alert("Error: " + (err.response?.data?.error || err.message));
-        }
+        } catch (err: any) { alert("Error: " + (err.response?.data?.error || err.message)); }
     };
 
     const handleExportExcel = () => {
         if (!filteredData || filteredData.length === 0) return alert("No hay datos para exportar");
-        exportToExcel(filteredData, currentWeek);
+        exportToExcel(filteredData, "Completo");
     };
 
     const getTurnoStyle = (t: string) => {
         const v = (t || '').toUpperCase();
         if (!v) return 'bg-white text-slate-300';
-        if (v.includes('DESCANSO')) return 'bg-rose-50 text-rose-700 border-rose-200';
-        if (v.includes('INCAPACITADA')) return 'bg-amber-50 text-amber-700 border-amber-200';
-        if (v.includes('VACACIONES')) return 'bg-emerald-50 text-emerald-700 border-emerald-200';
-        if (v.includes('CICLOVIA')) return 'bg-purple-50 text-purple-700 border-purple-200';
-        if (v.includes('D. PROGRAMADO')) return 'bg-indigo-50 text-indigo-700 border-indigo-200';
-        const isBase = (v.includes('6:00') || v.includes('2:30'));
-        if (isBase) return 'bg-white text-black border-slate-200';
-        return 'bg-blue-50 text-blue-800 border-blue-200 shadow-sm';
+        if (v.includes('DES')) return 'bg-rose-50 text-rose-700 border-rose-200';
+        if (v.includes('INC')) return 'bg-amber-50 text-amber-700 border-amber-200';
+        if (v.includes('VAC')) return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+        return (v.includes('6:0') || v.includes('2:3'))
+            ? 'bg-white text-black border-slate-200'
+            : 'bg-blue-50 text-blue-800 border-blue-200 shadow-sm';
     };
 
     return (
@@ -313,167 +275,211 @@ export default function HorarioGestor() {
                     <button onClick={() => navigate('/dashboard')} className="p-1 hover:bg-slate-100 rounded transition-all text-slate-500 hover:text-slate-900 border border-transparent hover:border-slate-200">
                         <ArrowLeft size={16} />
                     </button>
-                    <h1 className="text-sm font-bold text-slate-900 uppercase tracking-tight">Horario Gestor</h1>
+                    <h1 className="text-sm font-bold text-slate-900 uppercase tracking-tight">Gestión de Horarios</h1>
                 </div>
 
-                <div className="flex items-center gap-2">
-                    <div className="flex items-center bg-slate-50 rounded-md p-0.5 border border-slate-200 shadow-sm">
-                        <button onClick={() => changeWeek(-1)} className="p-1 hover:bg-white rounded text-slate-400 hover:text-slate-900 transition-all"><ChevronLeft size={16} /></button>
-                        <div className="px-2 flex items-center gap-1.5 border-x border-slate-100">
-                            <Calendar size={12} className="text-slate-400" />
-                            <span className="text-[10px] font-bold text-slate-600 uppercase">Semana del {new Date(currentWeek + 'T12:00:00').toLocaleDateString('es-ES', { day: '2-digit', month: 'short' })}</span>
-                        </div>
-                        <button onClick={() => changeWeek(1)} className="p-1 hover:bg-white rounded text-slate-400 hover:text-slate-900 transition-all"><ChevronRight size={16} /></button>
-                    </div>
-
+                <div className="flex items-center gap-3">
                     {emptyCount > 0 && (
                         <button
                             onClick={() => setFilterEmpty(!filterEmpty)}
-                            className={`flex items-center gap-2 px-2 py-1 rounded-md font-bold text-[9px] uppercase transition-all ${filterEmpty ? 'bg-orange-600 text-white shadow-sm' : 'bg-red-50 text-red-600 border border-red-100'}`}
+                            className={`flex items-center gap-2 px-3 py-1 rounded-md font-bold text-[10px] uppercase transition-all ${filterEmpty ? 'bg-orange-600 text-white shadow-sm' : 'bg-red-50 text-red-600 border border-red-100'}`}
                         >
-                            <AlertTriangle size={11} /> {emptyCount} VACANTES
+                            <AlertTriangle size={12} /> {emptyCount} VACANTES
                         </button>
                     )}
 
-                    <div className="flex items-center gap-1 bg-slate-50 p-0.5 rounded-md border border-slate-200">
-                        <div className="relative flex items-center bg-white rounded border border-slate-200 px-1.5 py-0.5">
-                            <Search className="text-slate-300" size={11} />
-                            <input type="text" placeholder="Buscar..." className="bg-transparent border-none text-[10px] font-bold w-24 outline-none ml-1 text-slate-800" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+                    <div className="flex items-center gap-1 bg-slate-50 p-1 rounded-md border border-slate-200">
+                        <div className="relative flex items-center bg-white rounded border border-slate-200 px-2 py-0.5">
+                            <Search className="text-slate-300" size={12} />
+                            <input type="text" placeholder="Buscar funcionario..." className="bg-transparent border-none text-[10px] font-bold w-40 outline-none ml-2 text-slate-800" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
                         </div>
-                        <select className="bg-white border border-slate-200 rounded text-[10px] font-bold px-1.5 py-0.5 outline-none text-slate-600 appearance-none cursor-pointer hover:bg-slate-50" value={selectedEscenario} onChange={e => setSelectedEscenario(e.target.value)}>
-                            <option value="Todos">Sedes</option>
+                        <select className="bg-white border border-slate-200 rounded text-[10px] font-bold px-2 py-0.5 outline-none text-slate-600 cursor-pointer hover:bg-slate-50" value={selectedEscenario} onChange={e => setSelectedEscenario(e.target.value)}>
+                            <option value="Todos">Todas las Sedes</option>
                             <option value="Ciclovía">Ciclovía</option>
                             {allowedEscenarios.filter(e => e !== 'Ciclovía').map(esc => <option key={esc} value={esc}>{esc}</option>)}
                         </select>
                     </div>
                 </div>
 
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-2">
                     <button
-                        onClick={handleExportExcel}
-                        className="flex items-center gap-1 px-2.5 py-1 bg-white text-slate-600 border border-slate-200 rounded-md font-bold text-[9px] uppercase hover:bg-slate-50 transition-all shadow-sm"
+                        onClick={() => setHidePassedDays(!hidePassedDays)}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 border rounded-md font-bold text-[10px] uppercase transition-all shadow-sm ${hidePassedDays ? 'bg-indigo-600 text-white border-indigo-700' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
                     >
-                        <FileDown size={12} className="text-emerald-600" /> Exportar
+                        {hidePassedDays ? 'Mostrar Todo' : 'Ocultar Pasados'}
                     </button>
-                    <button onClick={() => setShowAddModal(true)} className="flex items-center gap-1 px-2.5 py-1 bg-slate-800 text-white border border-slate-900 rounded-md font-bold text-[9px] uppercase hover:bg-slate-900 transition-all shadow-sm">
-                        <UserPlus size={12} /> Alta
+                    <button onClick={handleExportExcel} className="flex items-center gap-1.5 px-3 py-1.5 bg-white text-slate-600 border border-slate-200 rounded-md font-bold text-[10px] uppercase hover:bg-slate-50 transition-all shadow-sm">
+                        <FileDown size={14} className="text-emerald-600" /> Excel
+                    </button>
+                    <button onClick={() => setShowAddForm(!showAddForm)} className={`flex items-center gap-1.5 px-3 py-1.5 border rounded-md font-bold text-[10px] uppercase transition-all shadow-sm ${showAddForm ? 'bg-rose-600 text-white border-rose-700' : 'bg-slate-800 text-white border-slate-900 hover:bg-slate-900'}`}>
+                        {showAddForm ? <X size={14} /> : <UserPlus size={14} />} {showAddForm ? 'Cerrar' : 'Nuevo'}
                     </button>
                     {isEditMode ? (
-                        <button onClick={handleSave} className="flex items-center gap-1 px-2.5 py-1 bg-blue-600 text-white rounded-md font-bold text-[9px] uppercase shadow-md animate-pulse">
-                            <Save size={12} /> Guardar
+                        <button onClick={handleSave} className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white rounded-md font-bold text-[10px] uppercase shadow-md animate-pulse">
+                            <Save size={14} /> Guardar
                         </button>
                     ) : (
-                        <button onClick={() => setIsEditMode(true)} className="flex items-center gap-1 px-2.5 py-1 bg-slate-100 text-slate-700 border border-slate-200 rounded-md font-bold text-[9px] uppercase hover:bg-white transition-all">
-                            <Edit2 size={12} className="text-blue-600" /> Gestionar
+                        <button onClick={() => setIsEditMode(true)} className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 text-slate-700 border border-slate-200 rounded-md font-bold text-[10px] uppercase hover:bg-white transition-all">
+                            <Edit2 size={14} className="text-blue-600" /> Editar
                         </button>
                     )}
                 </div>
             </header>
 
-            <main className="flex-1 overflow-hidden p-2 flex flex-col">
+            <main className="flex-1 overflow-hidden p-3 flex flex-col">
                 {error && (
-                    <div className="bg-red-50 border border-red-200 text-red-600 p-2 mb-2 rounded-lg text-[10px] font-bold flex justify-between items-center shadow-sm">
+                    <div className="bg-red-50 border border-red-200 text-red-600 p-3 mb-3 rounded-lg text-xs font-bold flex justify-between items-center shadow-sm">
                         <span>{error}</span>
-                        <button onClick={() => setError(null)}><X size={12} /></button>
+                        <button onClick={() => setError(null)}><X size={14} /></button>
                     </div>
                 )}
-                <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-auto h-full no-scrollbar relative">
+
+                {showAddForm && (
+                    <div className="bg-white p-4 mb-3 rounded-xl border border-slate-200 shadow-md animate-in slide-in-from-top-2 duration-200">
+                        <div className="flex items-center gap-4">
+                            <div className="flex-1 space-y-1">
+                                <label className="block text-[9px] font-bold text-slate-400 uppercase tracking-widest">Nombre del Funcionario</label>
+                                <input
+                                    type="text"
+                                    className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg font-bold text-xs outline-none focus:border-blue-500 transition-all text-slate-900"
+                                    value={newGestor.nombre}
+                                    onChange={e => setNewGestor({ ...newGestor, nombre: e.target.value.toUpperCase() })}
+                                    placeholder="EJ: JUAN PÉREZ"
+                                />
+                            </div>
+                            <div className="w-48 space-y-1">
+                                <label className="block text-[9px] font-bold text-slate-400 uppercase tracking-widest">Contacto</label>
+                                <input
+                                    type="text"
+                                    className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg font-bold text-xs outline-none focus:border-blue-500 transition-all text-slate-900"
+                                    value={newGestor.contacto}
+                                    onChange={e => setNewGestor({ ...newGestor, contacto: e.target.value })}
+                                    placeholder="300..."
+                                />
+                            </div>
+                            <div className="w-48 space-y-1">
+                                <label className="block text-[9px] font-bold text-slate-400 uppercase tracking-widest">Sede Asignada</label>
+                                <select
+                                    className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg font-bold text-[11px] outline-none focus:border-blue-500 cursor-pointer text-slate-900"
+                                    value={newGestor.escenario}
+                                    onChange={e => setNewGestor({ ...newGestor, escenario: e.target.value })}
+                                >
+                                    <option value="">SELECCIONE...</option>
+                                    {allowedEscenarios.map(e => <option key={e} value={e}>{e}</option>)}
+                                </select>
+                            </div>
+                            <button
+                                onClick={handleAdd}
+                                className="mt-5 px-6 py-2 bg-blue-600 text-white rounded-lg font-bold uppercase text-[10px] hover:bg-blue-700 transition-all shadow-lg active:scale-95"
+                            >
+                                Registrar
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-auto h-full no-scrollbar">
                     {isLoading ? (
                         <div className="h-full flex flex-col items-center justify-center gap-4">
-                            <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-                            <p className="font-bold text-slate-400 uppercase tracking-widest text-[10px]">Cargando Datos...</p>
+                            <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                            <p className="font-bold text-slate-400 uppercase tracking-widest text-xs">Sincronizando Base de Datos...</p>
                         </div>
                     ) : (
-                        <table className="w-full border-collapse table-fixed min-w-[1900px]">
+                        <table className="w-full border-collapse table-fixed min-w-[1500px]">
                             <thead className="sticky top-0 z-40">
-                                <tr className="bg-slate-900">
-                                    <th className="w-[120px] p-2 text-[9px] font-bold text-slate-400 uppercase text-left sticky left-0 bg-slate-900 border-r border-slate-800">Sede</th>
-                                    <th className="w-[150px] p-2 text-[9px] font-bold text-slate-400 uppercase text-left border-r border-slate-800">Funcionario</th>
-                                    <th className="w-[100px] p-2 text-[9px] font-bold text-slate-400 uppercase text-center border-r border-slate-800">Contacto</th>
-                                    {DAYS.map(d => <th key={d} className="p-2 text-[9px] font-bold text-slate-400 uppercase text-center border-r border-slate-800">{d}</th>)}
-                                    {isEditMode && <th className="w-[60px] bg-red-900/50 border-l border-slate-800 text-[9px] text-white font-bold text-center uppercase">Acción</th>}
+                                <tr className="bg-slate-900 text-white">
+                                    <th className="w-[180px] p-3 text-[10px] font-bold uppercase text-left sticky left-0 bg-slate-900 z-50">Sede</th>
+                                    <th className="w-[180px] p-3 text-[10px] font-bold uppercase text-left sticky left-[180px] bg-slate-900 z-50 shadow-[2px_0_5px_rgba(0,0,0,0.2)]">Funcionario</th>
+                                    <th className="w-[110px] p-3 text-[10px] font-bold uppercase text-center">Contacto</th>
+                                    {visibleDaysIdx.map(i => <th key={DAYS[i]} className="p-3 text-[10px] font-bold uppercase text-center">{DAYS[i]}</th>)}
+                                    {isEditMode && <th className="w-[70px] bg-red-900/50 text-[10px] font-bold text-center uppercase">Acción</th>}
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100">
                                 {filteredData.map((item, escIdx) => (
                                     <React.Fragment key={item.escenario}>
-                                        {item.gestores.length > 0 ? (
-                                            item.gestores.map((g, gIdx) => {
-                                                const isEven = escIdx % 2 === 0;
-                                                const bg = isEven ? 'bg-white' : 'bg-slate-50';
+                                        {/* Separador de Escenario Azul Tenue */}
+                                        <tr className="bg-blue-50/60 border-y border-blue-100">
+                                            <td colSpan={visibleDaysIdx.length + (isEditMode ? 4 : 3)} className="px-4 py-2 sticky left-0 z-20">
+                                                <div className="flex items-center gap-2">
+                                                    <div className="w-1.5 h-4 bg-blue-500 rounded-full"></div>
+                                                    <span className="text-[11px] font-black text-blue-900 uppercase tracking-wider">{item.escenario}</span>
+                                                    <span className="text-[9px] font-bold text-blue-400/80 uppercase ml-auto">Sectorizado</span>
+                                                </div>
+                                            </td>
+                                        </tr>
 
-                                                return (
-                                                    <tr key={`${item.escenario}-${g.nombre}`} className={`${bg} transition-all hover:bg-blue-50/50 group`}>
-                                                        {gIdx === 0 && (
-                                                            <td rowSpan={item.gestores.length} className={`p-2 sticky left-0 ${bg} z-30 border-r-2 border-slate-200 font-bold text-[10px] uppercase text-slate-800 align-middle leading-tight`}>
-                                                                {item.escenario}
-                                                            </td>
+                                        {item.gestores.length > 0 ? (
+                                            item.gestores.map((g, gIdx) => (
+                                                <tr key={`${item.escenario}-${g.nombre}`} className="bg-white transition-all hover:bg-slate-50 group">
+                                                    <td className="p-3 sticky left-0 bg-white z-20 font-bold text-[10px] uppercase text-slate-400 border-r border-slate-50">{item.escenario}</td>
+                                                    <td className="p-3 sticky left-[180px] bg-white z-20 font-bold text-[11px] uppercase text-slate-900 border-r border-slate-50 shadow-[1px_0_3px_rgba(0,0,0,0.05)]">{g.nombre}</td>
+                                                    <td className="p-2 border-r border-slate-50 text-center">
+                                                        {isEditMode ? (
+                                                            <input type="text" className="w-full p-1.5 bg-white border border-slate-200 rounded text-[10px] font-bold text-center text-slate-800 outline-none" value={g.contacto} onChange={e => handleUpdate(data.indexOf(item), gIdx, 'contacto', e.target.value)} />
+                                                        ) : (
+                                                            <div className="flex items-center justify-center gap-1.5">
+                                                                <Phone size={11} className="text-slate-400" />
+                                                                <span className="text-[10px] font-bold text-slate-600">{g.contacto || '---'}</span>
+                                                            </div>
                                                         )}
-                                                        <td className="p-2 border-r border-slate-100 font-bold text-[10px] uppercase text-slate-900">{g.nombre}</td>
-                                                        <td className="p-1.5 border-r border-slate-100 text-center">
-                                                            {isEditMode ? (
-                                                                <input type="text" className="w-full p-1 bg-white border border-slate-200 rounded text-[9px] font-bold text-center text-slate-800 outline-none" value={g.contacto} onChange={e => handleUpdate(data.indexOf(item), gIdx, 'contacto', e.target.value)} />
-                                                            ) : (
-                                                                <div className="flex items-center justify-center gap-1">
-                                                                    <Phone size={10} className="text-slate-400" />
-                                                                    <span className="text-[10px] font-bold text-slate-600">{g.contacto || '---'}</span>
-                                                                </div>
-                                                            )}
-                                                        </td>
-                                                        {g.turnos.map((t, tIdx) => (
-                                                            <td key={tIdx} className="p-1 border-r border-slate-100 align-middle">
+                                                    </td>
+                                                    {visibleDaysIdx.map(tIdx => {
+                                                        const t = g.turnos[tIdx];
+                                                        return (
+                                                            <td key={tIdx} className="p-1.5 border-r border-slate-50 align-middle">
                                                                 {isEditMode ? (
-                                                                    <div className="flex flex-col gap-0.5">
+                                                                    <div className="flex flex-col gap-1">
                                                                         <select className="w-full p-1 bg-white border border-slate-200 rounded text-[9px] font-bold text-center" value={TURNO_PRESETS.includes(t) ? t : "custom"} onChange={e => {
-                                                                            if (e.target.value !== "custom") {
-                                                                                handleUpdate(data.indexOf(item), gIdx, 'turnos', e.target.value, tIdx);
-                                                                            }
+                                                                            if (e.target.value !== "custom") handleUpdate(data.indexOf(item), gIdx, 'turnos', e.target.value, tIdx);
                                                                         }}>
-                                                                            <option value="custom">✍️</option>
+                                                                            <option value="custom">✍️ EDITAR</option>
                                                                             {TURNO_PRESETS.map(p => <option key={p} value={p}>{p}</option>)}
                                                                         </select>
-                                                                        <input type="text" className="w-full p-1 bg-slate-50 border border-slate-100 rounded text-[9px] font-bold text-center" value={t} onChange={e => handleUpdate(data.indexOf(item), gIdx, 'turnos', e.target.value, tIdx)} />
+                                                                        <input type="text" className="w-full p-1 bg-slate-50 border border-slate-100 rounded text-[9px] font-bold text-center uppercase" value={t} onChange={e => handleUpdate(data.indexOf(item), gIdx, 'turnos', e.target.value, tIdx)} />
                                                                     </div>
                                                                 ) : (
-                                                                    <div className={`mx-auto p-1 rounded border text-[9px] font-bold text-center leading-none min-w-[90px] shadow-sm uppercase ${getTurnoStyle(t)}`}>
+                                                                    <div className={`mx-auto p-2 rounded border text-[10px] font-bold text-center leading-none min-w-[95px] shadow-sm uppercase ${getTurnoStyle(t)}`}>
                                                                         {t || '---'}
                                                                     </div>
                                                                 )}
                                                             </td>
-                                                        ))}
-                                                        {isEditMode && (
-                                                            <td className="text-center p-1 bg-red-50">
-                                                                <button onClick={() => handleDelete(item.escenario, g.nombre)} className="p-1 text-red-400 hover:text-red-600 transition-all">
-                                                                    <Trash2 size={14} />
-                                                                </button>
-                                                            </td>
-                                                        )}
-                                                    </tr>
-                                                );
-                                            })
+                                                        );
+                                                    })}
+                                                    {isEditMode && (
+                                                        <td className="text-center p-2 bg-red-50/30">
+                                                            <button onClick={() => handleDelete(item.escenario, g.nombre)} className="p-1.5 text-red-400 hover:text-red-600 transition-all hover:bg-white rounded border border-transparent hover:border-red-100">
+                                                                <Trash2 size={16} />
+                                                            </button>
+                                                        </td>
+                                                    )}
+                                                </tr>
+                                            ))
                                         ) : item.gaps.length > 0 ? (
-                                            <tr className={escIdx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
-                                                <td className="p-2 sticky left-0 bg-inherit z-30 border-r-2 border-slate-200 font-bold text-[10px] uppercase text-slate-400">{item.escenario}</td>
-                                                <td colSpan={DAYS.length + 3} className="p-2 text-center">
-                                                    <div className="flex items-center justify-center gap-2 py-1">
-                                                        <AlertCircle className="text-slate-300" size={14} />
-                                                        <span className="text-slate-400 font-bold uppercase text-[9px] italic tracking-wider">Vacante</span>
+                                            <tr className="bg-white">
+                                                <td className="p-3 sticky left-0 bg-white z-20 font-bold text-[10px] uppercase text-slate-300 border-r border-slate-50">{item.escenario}</td>
+                                                <td className="p-3 sticky left-[180px] bg-white z-20 font-bold text-[10px] uppercase text-slate-300 border-r border-slate-50">---</td>
+                                                <td colSpan={visibleDaysIdx.length + (isEditMode ? 2 : 1)} className="p-3 text-center">
+                                                    <div className="flex items-center justify-center gap-2 py-1 bg-slate-50/50 rounded-lg border border-dashed border-slate-200">
+                                                        <AlertCircle className="text-slate-300" size={16} />
+                                                        <span className="text-slate-400 font-bold uppercase text-[10px] italic tracking-widest">Sede sin personal asignado</span>
                                                     </div>
                                                 </td>
                                             </tr>
                                         ) : null}
 
+                                        {/* Alertas de Cobertura */}
                                         {item.gaps.length > 0 && (
                                             <tr className="bg-white border-t border-slate-100">
-                                                <td className="p-2 sticky left-0 bg-white z-30 border-r-2 border-red-500 font-bold text-[9px] text-red-500 uppercase italic">⚠️ Alerta</td>
-                                                <td className="p-2 font-bold text-[9px] text-slate-400 uppercase">Sin Cobertura:</td>
+                                                <td className="p-3 sticky left-0 bg-white z-20 border-r-2 border-red-400 font-bold text-[10px] text-red-500 uppercase italic">⚠️ Alerta</td>
+                                                <td className="p-3 sticky left-[180px] bg-white z-20 font-bold text-[10px] text-slate-400 uppercase border-r border-slate-50">Sin Cobertura:</td>
                                                 <td className="border-r border-slate-50"></td>
-                                                {DAYS.map((_, i) => {
+                                                {visibleDaysIdx.map(i => {
                                                     const dayGaps = item.gaps.filter(g => g.day === i);
                                                     return (
-                                                        <td key={i} className="p-1 border-r border-slate-50">
+                                                        <td key={i} className="p-2 border-r border-slate-50">
                                                             {dayGaps.length > 0 && (
-                                                                <div className="flex flex-col gap-0.5">
+                                                                <div className="flex flex-col gap-1">
                                                                     {dayGaps.map(g => (
                                                                         <button
                                                                             key={g.shift}
@@ -481,7 +487,7 @@ export default function HorarioGestor() {
                                                                                 setActiveGap({ escenario: item.escenario, day: i, shift: g.shift });
                                                                                 setShowReplacementModal(true);
                                                                             }}
-                                                                            className="bg-red-500 text-white text-[8px] font-bold py-1 px-1.5 rounded text-center uppercase hover:bg-slate-900 transition-all"
+                                                                            className="bg-red-500 text-white text-[9px] font-black py-1.5 px-2 rounded text-center uppercase hover:bg-slate-900 transition-all shadow-sm"
                                                                         >
                                                                             {g.shift}
                                                                         </button>
@@ -491,7 +497,7 @@ export default function HorarioGestor() {
                                                         </td>
                                                     );
                                                 })}
-                                                {isEditMode && <td className="bg-red-50/50"></td>}
+                                                {isEditMode && <td className="bg-red-50/20"></td>}
                                             </tr>
                                         )}
                                     </React.Fragment>
@@ -502,24 +508,7 @@ export default function HorarioGestor() {
                 </div>
             </main>
 
-
-            <AddGestorModal
-                isOpen={showAddModal}
-                onClose={() => setShowAddModal(false)}
-                newGestor={newGestor}
-                setNewGestor={setNewGestor}
-                onAdd={handleAdd}
-                allowedEscenarios={allowedEscenarios}
-            />
-
-
-            <ReplacementModal
-                isOpen={showReplacementModal}
-                onClose={() => setShowReplacementModal(false)}
-                activeGap={activeGap}
-                data={data}
-                onAssign={handleAssignReplacement}
-            />
+            <ReplacementModal isOpen={showReplacementModal} onClose={() => setShowReplacementModal(false)} activeGap={activeGap} data={data} onAssign={handleAssignReplacement} />
         </div>
     );
 }

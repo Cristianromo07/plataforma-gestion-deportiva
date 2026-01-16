@@ -44,13 +44,13 @@ export default function DashboardPage() {
                     to="/subgerencia-escenarios"
                     icon={<Map className="h-8 w-8 text-emerald-600" />}
                     title="Escenarios"
-                    desc="Explorar y gestionar escenarios."
+                    desc="Programacion canchas y gestionar escenarios."
                 />
 
                 <DashboardCard
                     to="/subgerencia-escenarios/horario-gestor"
                     icon={<Clock className="h-8 w-8 text-blue-600" />}
-                    title="Horarios"
+                    title="Horario gestor"
                     desc="Planificación semanal gestores."
                 />
 

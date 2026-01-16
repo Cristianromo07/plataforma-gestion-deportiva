@@ -8,7 +8,7 @@
         "allowJs": true,
         "checkJs": false,
         "outDir": "./dist",
-        "rootDir": "./",
+        "rootDir": "./server/src",
         "strict": true,
         "noImplicitAny": true,
         "esModuleInterop": true,
@@ -23,7 +23,7 @@
         }
     },
     "include": [
-        "server/**/*"
+        "server/src/**/*"
     ],
     "exclude": [
         "node_modules",

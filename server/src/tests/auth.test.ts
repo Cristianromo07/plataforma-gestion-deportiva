@@ -1,6 +1,6 @@
-const request = require('supertest');
-const app = require('../index');
-const { pool } = require('../config/db');
+import request from 'supertest';
+import app from '../app';
+import { pool } from '../config/db';
 
 // Cerramos la conexión a la base de datos al finalizar todas las pruebas
 afterAll(async () => {
@@ -11,7 +11,7 @@ describe('POST /api/login', () => {
     // Caso 1: Login Exitoso
     it('Debe retornar 200 y el usuario si las credenciales son correctas', async () => {
         const response = await request(app)
-            .post('/api/login')
+            .post('/api/auth/login')
             .send({
                 email: 'admin@test.com',
                 password: 'admin123'
@@ -25,7 +25,7 @@ describe('POST /api/login', () => {
     // Caso 2: Login Fallido (Contraseña incorrecta)
     it('Debe retornar 401 si la contraseña es incorrecta', async () => {
         const response = await request(app)
-            .post('/api/login')
+            .post('/api/auth/login')
             .send({
                 email: 'admin@test.com',
                 password: 'wrongpassword'
@@ -36,10 +36,9 @@ describe('POST /api/login', () => {
     });
 
     // Caso 3: Fallo de Validación (Email inválido)
-    // Gracias al middleware express-validator esto debería devolver 400
     it('Debe retornar 400 si el email no es válido', async () => {
         const response = await request(app)
-            .post('/api/login')
+            .post('/api/auth/login')
             .send({
                 email: 'notanemail',
                 password: 'admin123'

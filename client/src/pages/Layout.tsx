@@ -77,7 +77,7 @@ export default function Layout() {
                             className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-lg transition-all text-xs font-bold uppercase tracking-wider ${isActive ? 'bg-blue-600 text-white shadow-md' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
                         >
                             <Map className="h-4 w-4" />
-                            <span>Explorar</span>
+                            <span>Programacion canchas</span>
                         </NavLink>
 
                         <NavLink

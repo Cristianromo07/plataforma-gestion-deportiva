@@ -1,7 +1,7 @@
 import React from 'react';
 import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { Home, Palette, Trophy, Heart, Map, Clock, User, LogOut, LayoutDashboard, FileText, History } from 'lucide-react';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../../context/AuthContext';
 
 export default function Layout() {
     const navigate = useNavigate();

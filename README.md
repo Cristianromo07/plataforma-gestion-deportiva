@@ -1,77 +1,212 @@
-# Plataforma de Gestión Deportiva - PGD Itagüí
+# PGD - Plataforma de Gestion Deportiva
 
-## Introducción Técnica
-La Plataforma de Gestión Deportiva (PGD) es una solución empresarial de Data Governance y Control Operativo desarrollada específicamente para las necesidades del Instituto Municipal de Cultura, Recreación y Deporte de Itagüí. El sistema implementa una arquitectura robusta para la administración centralizada de activos públicos, optimizando la asignación de recursos humanos y la planificación de infraestructuras deportivas a través de una interfaz de alta precisión y un núcleo de datos íntegro.
+## Descripcion del Proyecto
 
-## Arquitectura del Sistema
-El ecosistema tecnológico se fundamenta en un diseño monolítico modular bajo estándares de Separación de Responsabilidades (SoC). Esta estructura garantiza un desacoplamiento efectivo entre la capa de presentación y la lógica de negocio, facilitando la escalabilidad horizontal y la futura transición hacia microservicios si la demanda operativa lo requiere.
+La Plataforma de Gestion Deportiva (PGD) es un sistema empresarial desarrollado para el Instituto Municipal de Cultura, Recreacion y Deporte de Itagui. Su proposito principal es centralizar la administracion de activos publicos, optimizar la asignacion de recursos humanos y facilitar la planificacion de infraestructuras deportivas.
 
-### Diagrama de Flujo de Datos
-```mermaid
-graph TD
-    subgraph Capa_de_Presentacion
-        UI[Componentes UI React] --> Hooks[Hooks Personalizados]
-        Hooks --> Services[Servicios API Axios]
-    end
+El sistema implementa una arquitectura monolitica modular con separacion de responsabilidades (SoC), diseñada para garantizar mantenibilidad, escalabilidad y facilidad de pruebas. La aplicacion consta de un cliente React y un servidor Express.js, ambos desarrollados integramente en TypeScript.
 
-    subgraph Capa_de_Logica
-        Services --> Routes[Rutas Express.js]
-        Routes --> Middleware[Capa de Seguridad]
-        Middleware --> Controllers[Controladores de Negocio]
-    end
+### Caracteristicas Principales
 
-    subgraph Capa_de_Persistencia
-        Controllers --> ORM[Pool de Conexiones SQL]
-        ORM --> Database[(MariaDB / MySQL)]
-    end
+- **Administracion de Horarios Operativos**: Programacion dinamica con navegacion semanal, persistencia de historicos y proyeccion de turnos futuros.
+- **Gestion de Reservas**: Calendario interactivo con soporte para sesiones recurrentes y validacion automatica de conflictos.
+- **Control de Acceso RBAC**: Modelo de autenticacion basado en roles (Administrador y Operador).
+- **Exportacion de Reportes**: Generacion de reportes en formato XLSX con estilos personalizados.
+
+---
+
+## Requisitos Previos
+
+Antes de iniciar la instalacion, asegurese de contar con los siguientes componentes:
+
+| Componente | Version Minima | Verificacion |
+|------------|----------------|--------------|
+| Node.js | 18.x LTS o superior | `node --version` |
+| npm | 9.x o superior | `npm --version` |
+| MySQL/MariaDB | 8.0+ / 10.5+ | `mysql --version` |
+| Git | 2.x | `git --version` |
+
+---
+
+## Guia de Instalacion
+
+### 1. Clonar el Repositorio
+
+```bash
+git clone <url-del-repositorio>
+cd pgd
 ```
 
-## Componentes de Ingeniería y Calidad
-1. Integridad de Tipos: El proyecto está implementado íntegramente en TypeScript, lo que reduce el error humano en tiempo de ejecución y establece contratos de datos estrictos en toda la pila tecnológica.
-2. Gestión Transaccional: Las operaciones críticas de persistencia, especialmente en la actualización masiva de turnos operativos, están encapsuladas en transacciones SQL para asegurar la atomicidad y evitar estados de datos inconsistentes.
-3. Modularización UI: La interfaz se compone de elementos atómicos y componentes de propósito único, extrayendo la lógica de estado compleja hacia hooks dedicados y utilidades de procesamiento de datos externas.
+### 2. Configurar Variables de Entorno
 
-## Seguridad y Control de Acceso
-El sistema implementa un modelo de Control de Acceso Basado en Roles (RBAC) con dos niveles principales de privilegios: Administrador y Operador.
-- Autenticación: Gestión de sesiones a través de express-session con almacenamiento persistente en el servidor y mecanismos de seguridad en las cookies de cliente.
-- Autorización: Middleware especializado verifica las capacidades del usuario antes de ejecutar operaciones de escritura o acceso a módulos sensibles.
-- Integridad Temporal: Implementación de una política de normalización de fechas que mitiga discrepancias horarias mediante el uso de offsets controlados, asegurando que los reportes semanales sean coherentes independientemente del huso horario del cliente.
+Copie el archivo de ejemplo y configure las variables segun su entorno:
 
-## Módulos Funcionales
-### Administración de Horarios Operativos
-- Programación Dinámica: Algoritmo de navegación semanal que permite la persistencia de históricos y la proyección de turnos futuros.
-- Motor de Exportación: Extensión específica para la generación de reportes en formato XLSX con personalización de estilos CSS-in-JS, asegurando reportes corporativos legibles y precisos.
-- Análisis de Cobertura: Herramientas visuales para la identificación de vacantes operativas basadas en la disponibilidad del pool de gestores.
+```bash
+cp .env.example .env
+```
 
-### Gestión de Reservas e Infraestructura
-- Calendario Interactivo: Integración de FullCalendar optimizada para el renderizado eficiente de grandes volúmenes de eventos.
-- Lógica de Recurrencia: Capacidad de registrar sesiones periódicas con validación automática de conflictos de horario para evitar duplicidad de reservas en un mismo escenario.
+Edite el archivo `.env` con los siguientes parametros:
 
-## Estrategia de Escalabilidad Futura
-Para asegurar la viabilidad técnica del sistema a largo plazo, se han definido los siguientes ejes de evolución:
-1. Observabilidad y Monitoreo: Integración de herramientas de registro estructurado (Winston) y seguimiento de errores en producción (Sentry).
-2. Optimización de Lectura: Implementación de una capa de caché en memoria mediante Redis para acelerar la recuperación de horarios y estados de disponibilidad.
-3. Repositorio Multimedia Centralizado: Migración del almacenamiento de archivos local hacia servicios de almacenamiento de objetos como Amazon S3 o Cloudinary, permitiendo una gestión más eficiente de evidencias gráficas.
-4. Pirámide de Pruebas: Incorporación de pruebas unitarias para utilidades de cálculo y pruebas de integración para los flujos de autenticación y reserva.
+```env
+# Configuracion de Base de Datos
+DB_HOST=localhost
+DB_USER=<usuario_mysql>
+DB_PASSWORD=<contraseña_mysql>
+DB_NAME=<nombre_base_datos>
+DB_CONN_LIMIT=10
 
-## Stack Tecnológico Detallado
-LENGUAJE Y ENTORNO
-- TypeScript 5+
-- Node.js LTS
+# Configuracion del Servidor
+PORT=3000
+SESSION_SECRET=<clave_secreta_segura>
+ADMIN_PWD=<contraseña_administrador>
+```
 
-FRONTEND
+**Nota**: Genere un valor seguro para `SESSION_SECRET` utilizando un generador de claves aleatorias (minimo 32 caracteres).
+
+### 3. Configurar la Base de Datos
+
+Cree la base de datos y el usuario en MySQL/MariaDB:
+
+```sql
+CREATE DATABASE login_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER 'login_user'@'localhost' IDENTIFIED BY 'su_contraseña';
+GRANT ALL PRIVILEGES ON login_db.* TO 'login_user'@'localhost';
+FLUSH PRIVILEGES;
+```
+
+### 4. Instalar Dependencias
+
+Instale las dependencias del proyecto raiz y del cliente:
+
+```bash
+# Dependencias del proyecto raiz (incluye servidor)
+npm install
+
+# Dependencias del cliente
+cd client
+npm install
+cd ..
+```
+
+### 5. Compilar el Proyecto (Opcional para Produccion)
+
+Si desea ejecutar en modo produccion:
+
+```bash
+npm run build
+```
+
+---
+
+## Guia de Uso
+
+### Modo Desarrollo
+
+Para ejecutar el servidor y el cliente de forma concurrente en modo desarrollo:
+
+```bash
+npm run dev
+```
+
+Este comando inicia:
+- **Servidor**: `http://localhost:3000` (Express.js con hot-reload via nodemon)
+- **Cliente**: `http://localhost:5173` (Vite dev server)
+
+### Ejecutar Componentes Individualmente
+
+**Solo servidor:**
+
+```bash
+npm run server
+```
+
+**Solo cliente:**
+
+```bash
+npm run client
+```
+
+### Modo Produccion
+
+1. Compile el proyecto TypeScript:
+
+```bash
+npm run build
+```
+
+2. Inicie el servidor en modo produccion:
+
+```bash
+npm start
+```
+
+---
+
+## Estructura del Proyecto
+
+```
+pgd/
+├── client/                 # Aplicacion frontend (React + Vite)
+│   ├── src/
+│   │   ├── components/     # Componentes React reutilizables
+│   │   ├── hooks/          # Hooks personalizados
+│   │   └── services/       # Servicios de comunicacion con API
+│   └── package.json
+├── server/                 # Aplicacion backend (Express.js)
+│   ├── src/
+│   │   ├── config/         # Configuracion de base de datos
+│   │   ├── controllers/    # Logica de negocio
+│   │   ├── middleware/     # Autenticacion y manejo de errores
+│   │   └── routes/         # Definicion de endpoints API
+│   └── .env.example
+├── docs/                   # Documentacion tecnica
+├── data/                   # Datos de referencia
+├── package.json            # Configuracion raiz del proyecto
+└── tsconfig.json           # Configuracion de TypeScript
+```
+
+---
+
+## Stack Tecnologico
+
+### Frontend
 - React 18
 - Vite
 - Tailwind CSS
-- Lucide React
+- TypeScript
 
-BACKEND
-- Express.js
+### Backend
+- Express.js 5
 - Express Session
+- MySQL2 (Pool de conexiones)
 - Morgan / Helmet
+- TypeScript
 
-BASE DE DATOS
-- MySQL 8.0+ / MariaDB
+### Base de Datos
+- MySQL 8.0+ / MariaDB 10.5+
 
 ---
-Documentación técnica oficial. Desarrollado con estándares de ingeniería para la gestión pública eficiente.
+
+## Documentacion Adicional
+
+Consulte la carpeta `docs/` para documentacion detallada:
+
+- `ARCHITECTURE.md` - Arquitectura del sistema
+- `DATABASE.md` - Esquema de base de datos
+- `MANUAL_TECNICO.md` - Manual tecnico completo
+- `MANUAL_USUARIO.md` - Manual de usuario
+
+---
+
+## Scripts Disponibles
+
+| Script | Comando | Descripcion |
+|--------|---------|-------------|
+| `dev` | `npm run dev` | Inicia servidor y cliente en modo desarrollo |
+| `server` | `npm run server` | Inicia solo el servidor con hot-reload |
+| `client` | `npm run client` | Inicia solo el cliente |
+| `build` | `npm run build` | Compila TypeScript para produccion |
+| `start` | `npm start` | Ejecuta el servidor en modo produccion |
+
+---
+

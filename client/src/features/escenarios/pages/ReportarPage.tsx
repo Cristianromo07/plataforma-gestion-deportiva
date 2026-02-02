@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, History } from 'lucide-react';
 import ReportNewsForm from '../components/ReportNewsForm';
-import api from '../api';
+import api from '../../../api';
 
 export default function ReportarPage() {
     const navigate = useNavigate();

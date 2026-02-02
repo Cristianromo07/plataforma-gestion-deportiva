@@ -1,11 +1,11 @@
 // HorarioGestor.tsx - Gestión de turnos y gestores (Vista Fija)
 import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import api from '../api';
-import { exportToExcel } from '../utils/exportUtils';
+import api from '../../../api';
+import { exportToExcel } from '../../../utils/exportUtils';
 import { Search, UserPlus, Trash2, Edit2, Save, ArrowLeft, X, Phone, FileDown, AlertTriangle, AlertCircle } from 'lucide-react';
-import { normalize } from '../utils/stringUtils';
-import { Gestor, EscenarioData, ActiveGap, DAYS, TURNO_PRESETS } from '../types/horario';
+import { normalize } from '../../../utils/stringUtils';
+import { Gestor, EscenarioData, ActiveGap, DAYS, TURNO_PRESETS } from '../../../types/horario';
 import ReplacementModal from '../components/ReplacementModal';
 import AddGestorModal from '../components/AddGestorModal';
 

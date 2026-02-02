@@ -4,12 +4,12 @@ import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
-import api from '../api';
+import api from '../../../api';
 import BookingModal from '../components/BookingModal';
 import { ArrowLeft, Plus, History, Clock, Calendar } from 'lucide-react';
 
-import { useAuth } from '../context/AuthContext';
-import { Escenario } from '../types/horario';
+import { useAuth } from '../../../context/AuthContext';
+import { Escenario } from '../../../types/horario';
 
 export default function SubgerenciaPage() {
     const { user } = useAuth();

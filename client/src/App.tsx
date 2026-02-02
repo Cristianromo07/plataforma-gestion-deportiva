@@ -3,19 +3,25 @@ import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import api from './api';
 
-// Páginas
-import LoginPage from './pages/LoginPage';
-import RegisterPage from './pages/RegisterPage';
-import DashboardPage from './pages/DashboardPage';
-import Layout from './pages/Layout';
-import SubgerenciaPage from './pages/SubgerenciaPage';
-import HorarioGestor from './pages/HorarioGestor';
-import ProfilePage from './pages/ProfilePage';
-import ResetPasswordPage from './pages/ResetPasswordPage';
-import ForgotPasswordPage from './pages/ForgotPasswordPage';
-import NovedadesView from './pages/NovedadesView';
-import ReportarPage from './pages/ReportarPage';
-import { CulturaPage, FomentoPage, ActividadFisicaPage } from './pages/GenericPages';
+// Páginas - Auth
+import LoginPage from './features/auth/pages/LoginPage';
+import RegisterPage from './features/auth/pages/RegisterPage';
+import ProfilePage from './features/auth/pages/ProfilePage';
+import ResetPasswordPage from './features/auth/pages/ResetPasswordPage';
+import ForgotPasswordPage from './features/auth/pages/ForgotPasswordPage';
+
+// Páginas - Dashboard
+import DashboardPage from './features/dashboard/pages/DashboardPage';
+import { CulturaPage, FomentoPage, ActividadFisicaPage } from './features/dashboard/pages/GenericPages';
+
+// Páginas - Escenarios
+import SubgerenciaPage from './features/escenarios/pages/SubgerenciaPage';
+import HorarioGestor from './features/escenarios/pages/HorarioGestor';
+import NovedadesView from './features/escenarios/pages/NovedadesView';
+import ReportarPage from './features/escenarios/pages/ReportarPage';
+
+// Layout compartido
+import Layout from './shared/layouts/Layout';
 
 import { useAuth } from './context/AuthContext';
 

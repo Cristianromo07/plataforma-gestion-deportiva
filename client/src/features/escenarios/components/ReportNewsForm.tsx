@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import api from '../api';
+import api from '../../../api';
 import { Upload, X, FileText, CheckCircle } from 'lucide-react';
 
 interface Scenario {

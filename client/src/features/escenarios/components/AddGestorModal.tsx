@@ -1,6 +1,6 @@
 import React from 'react';
 import { X, UserPlus } from 'lucide-react';
-import { ALLOWED_ESCENARIOS } from '../types/horario';
+import { ALLOWED_ESCENARIOS } from '../../../types/horario';
 
 interface AddGestorModalProps {
     isOpen: boolean;

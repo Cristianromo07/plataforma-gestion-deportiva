@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, FileText, Calendar, Eye, MapPin, Download } from 'lucide-react';
-import api from '../api';
+import api from '../../../api';
 
 interface Novedad {
     id: number;

@@ -1,6 +1,6 @@
 import React from 'react';
 import { X, Search, Plus } from 'lucide-react';
-import { Gestor, EscenarioData, ActiveGap, DAYS } from '../types/horario';
+import { Gestor, EscenarioData, ActiveGap, DAYS } from '../../../types/horario';
 
 interface ReplacementModalProps {
     isOpen: boolean;

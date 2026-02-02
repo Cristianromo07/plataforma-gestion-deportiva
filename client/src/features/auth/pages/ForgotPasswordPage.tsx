@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import api from '../api';
+import api from '../../../api';
 import { Mail, Send, ArrowLeft } from 'lucide-react';
 
 export default function ForgotPasswordPage() {

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
-import api from '../api';
+import api from '../../../api';
 import { Lock, Save, AlertCircle, ArrowLeft } from 'lucide-react';
 
 export default function ResetPasswordPage() {

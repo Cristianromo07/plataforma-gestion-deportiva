@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Palette, Trophy, Heart, Map, Clock, User } from 'lucide-react';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../../../context/AuthContext';
 
 export default function DashboardPage() {
     const { user } = useAuth();

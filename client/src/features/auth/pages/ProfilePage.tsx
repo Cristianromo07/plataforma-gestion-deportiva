@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../../../context/AuthContext';
 import { User, Shield, ArrowRight } from 'lucide-react';
 
 export default function ProfilePage() {
